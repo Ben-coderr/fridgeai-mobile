@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Ingredient, MealType, PreferenceType, Recipe, ShoppingItem, UserPreferences } from '../types';
 import { defaultPreferences, initialDetectedIngredients, primaryRecipes, alternateRecipes } from '../data/mockData';
 import { shoppingService } from '../services/shoppingService';
+import { recipeService } from '../services/recipeService';
 
 interface AppContextType {
   ingredients: Ingredient[];
@@ -17,6 +18,7 @@ interface AppContextType {
   setPreference: (pref: PreferenceType) => void;
 
   recipes: Recipe[];
+  setRecipes: (recipes: Recipe[]) => void;
   selectedRecipe: Recipe;
   setSelectedRecipe: (recipe: Recipe) => void;
   generateDifferentRecipes: () => void;
@@ -100,9 +102,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const generateDifferentRecipes = () => {
     setIsAlternate((prev) => {
       const next = !prev;
-      const newRecipeSet = next ? alternateRecipes : primaryRecipes;
-      setRecipes(newRecipeSet);
-      setSelectedRecipe(newRecipeSet[0]);
+      recipeService.getRecipes(preferences, ingredients, next).then((newRecipeSet) => {
+        setRecipes(newRecipeSet);
+        if (newRecipeSet.length > 0) {
+          setSelectedRecipe(newRecipeSet[0]);
+        }
+      }).catch(() => {
+        const fallbackSet = next ? alternateRecipes : primaryRecipes;
+        setRecipes(fallbackSet);
+        setSelectedRecipe(fallbackSet[0]);
+      });
       return next;
     });
   };
@@ -170,6 +179,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setMealType,
         setPreference,
         recipes,
+        setRecipes,
         selectedRecipe,
         setSelectedRecipe,
         generateDifferentRecipes,

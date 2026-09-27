@@ -72,7 +72,7 @@ export const PdfExportScreen: React.FC = () => {
   const [actionLoading, setActionLoading] = useState<'download' | 'share' | null>(null);
 
   const slideScrollRef = useRef<ScrollView>(null);
-  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const [pulseAnim] = useState(() => new Animated.Value(1));
 
   // Pulse animation for the PDF icon
   React.useEffect(() => {
@@ -163,7 +163,7 @@ export const PdfExportScreen: React.FC = () => {
             <View style={styles.includedIconCircle}>
               <Ionicons name="document-text" size={18} color={colors.primary} />
             </View>
-            <Text style={styles.includedTitle}>What's included in your PDF?</Text>
+            <Text style={styles.includedTitle}>What&apos;s included in your PDF?</Text>
           </View>
 
           <View style={styles.includedGrid}>
@@ -184,7 +184,7 @@ export const PdfExportScreen: React.FC = () => {
             <View>
               <Text style={styles.previewTitle}>Preview of your PDF</Text>
               <Text style={styles.previewSubtitle}>
-                Here's a sample of how your exported meal plan will look.
+                Here&apos;s a sample of how your exported meal plan will look.
               </Text>
             </View>
 
