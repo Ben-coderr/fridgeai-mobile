@@ -5,6 +5,7 @@ import { shoppingService } from '../services/shoppingService';
 
 interface AppContextType {
   ingredients: Ingredient[];
+  setDetectedIngredients: (items: Ingredient[]) => void;
   updateIngredientQuantity: (id: string, delta: number) => void;
   deleteIngredient: (id: string) => void;
   addIngredient: (name: string, quantity: number, unit: string) => void;
@@ -48,6 +49,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setShoppingList(items);
     });
   }, [selectedRecipe.id]);
+
+  const setDetectedIngredients = (items: Ingredient[]) => {
+    setIngredients(items);
+  };
 
   const updateIngredientQuantity = (id: string, delta: number) => {
     setIngredients((prev) =>
@@ -155,6 +160,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     <AppContext.Provider
       value={{
         ingredients,
+        setDetectedIngredients,
         updateIngredientQuantity,
         deleteIngredient,
         addIngredient,

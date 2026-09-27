@@ -83,6 +83,16 @@ export const ShoppingListScreen: React.FC = () => {
     navigation.navigate('Home');
   };
 
+  const handleMarkAllPurchased = () => {
+    markAllAsPurchased();
+  };
+
+  const handleCreatePdf = () => {
+    navigation.navigate('PdfExport');
+  };
+
+  const allPurchased = shoppingList.length > 0 && shoppingList.every((i) => i.isPurchased);
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
@@ -234,15 +244,26 @@ export const ShoppingListScreen: React.FC = () => {
             <Text style={styles.shareText}>Share List</Text>
           </TouchableOpacity>
 
-          {/* Mark as Purchased */}
-          <TouchableOpacity
-            style={styles.purchaseButton}
-            onPress={markAllAsPurchased}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="cart" size={18} color={colors.textWhite} />
-            <Text style={styles.purchaseText}>Mark as Purchased</Text>
-          </TouchableOpacity>
+          {/* Mark as Purchased / Create PDF */}
+          {allPurchased ? (
+            <TouchableOpacity
+              style={[styles.purchaseButton, styles.pdfButton]}
+              onPress={handleCreatePdf}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="document-text-outline" size={18} color={colors.textWhite} />
+              <Text style={styles.purchaseText}>Create PDF</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={styles.purchaseButton}
+              onPress={handleMarkAllPurchased}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="cart" size={18} color={colors.textWhite} />
+              <Text style={styles.purchaseText}>Mark as Purchased</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Tip Card */}
@@ -546,6 +567,9 @@ const styles = StyleSheet.create({
     ...typography.body,
     fontWeight: '700',
     color: colors.textWhite,
+  },
+  pdfButton: {
+    backgroundColor: '#1d4ed8', // deep blue to distinguish from the green purchase button
   },
   tipCard: {
     flexDirection: 'row',
