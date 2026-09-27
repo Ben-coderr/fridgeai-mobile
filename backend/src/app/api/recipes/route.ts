@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import { dispatchRecipes, scoreAndRankRecipes } from '@/lib/ai/dispatcher';
-import { MOCK_RECIPES } from '@/lib/ai/mockData';
+import { dispatchRecipes } from '@/lib/ai/dispatcher';
 
 interface RecipeRequestBody {
   ingredients?: Array<{ name: string; quantity?: number; unit?: string } | string>;
@@ -86,11 +85,9 @@ export async function POST(request: Request) {
   } catch (err) {
     console.error('[recipes] Unexpected route error:', err);
 
-    // Guaranteed safe fallback: never crash or return empty
-    return NextResponse.json({
-      source: 'mock',
-      recipes: scoreAndRankRecipes(MOCK_RECIPES),
-      fallbackReason: (err as Error)?.message || 'Internal server error',
-    });
+    return NextResponse.json(
+      { error: (err as Error)?.message || 'Recipe generation failed.' },
+      { status: 502 }
+    );
   }
 }

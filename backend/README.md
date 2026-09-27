@@ -13,15 +13,15 @@ npm run dev
 
 Next.js requires Node.js 20.9 or later.
 
-`MOCK_AI=true` is the default development mode. It provides predictable API responses so the mobile team can build without an API key. Set `MOCK_AI=false` and configure `GEMINI_API_KEY` only when the real provider integration is implemented.
+Set `MOCK_AI=false` and configure the server-side Gemini, OpenRouter, and Groq key pools in `.env.local`. The mobile app sends photos and recipe requests to this backend; provider keys must never be placed in the mobile app.
 
 ## API contract
 
 | Route | Request | Response |
 |---|---|---|
-| `POST /api/scan` | multipart form with `image` | `{ ingredients: string[], source: "mock" }` |
-| `POST /api/recipes` | `{ ingredients, people, mealType, preference? }` | `{ recipes, source: "mock" }` |
+| `POST /api/scan` | multipart form with `image` | `{ ingredients, source }` |
+| `POST /api/recipes` | `{ ingredients, preferences }` | `{ recipes, source }` |
 
-The routes are deliberately mocked at this stage. They establish the stable contract for mobile/backend parallel work; replacing their internals with Gemini must not change the response shapes.
+Provider failures return an error response instead of invented fallback data. The mobile app shows these failures so backend URL, key, and provider problems can be fixed directly.
 
 Run `npm run build` before a backend pull request.

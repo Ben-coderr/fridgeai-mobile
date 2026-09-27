@@ -22,6 +22,7 @@ import { QuantityStepper } from '../components/common/QuantityStepper';
 import { MealTypeSelector } from '../components/preferences/MealTypeSelector';
 import { PreferenceChips } from '../components/preferences/PreferenceButton';
 import { PrimaryButton } from '../components/common/PrimaryButton';
+import { recipeService } from '../services/recipeService';
 import { colors, spacing, typography, shadows } from '../theme';
 
 type IngredientsScreenNavigationProp = NativeStackNavigationProp<
@@ -37,6 +38,8 @@ export const IngredientsScreen: React.FC = () => {
     deleteIngredient,
     addIngredient,
     preferences,
+    setRecipes,
+    setSelectedRecipe,
     setPeopleCount,
     setMealType,
     setPreference,
@@ -63,10 +66,15 @@ export const IngredientsScreen: React.FC = () => {
 
   const handleGenerateRecipes = () => {
     setIsGenerating(true);
-    setTimeout(() => {
+    recipeService.getRecipes(preferences, ingredients).then((generated) => {
+      setRecipes(generated);
+      setSelectedRecipe(generated[0]);
       setIsGenerating(false);
       navigation.navigate('Recipes');
-    }, 600);
+    }).catch((error: unknown) => {
+      setIsGenerating(false);
+      Alert.alert('Could not generate recipes', error instanceof Error ? error.message : 'Check your backend connection and try again.');
+    });
   };
 
   return (

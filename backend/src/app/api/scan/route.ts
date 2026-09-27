@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import sharp from 'sharp';
 import { dispatchVision } from '@/lib/ai/dispatcher';
-import { MOCK_DETECTED_INGREDIENTS } from '@/lib/ai/mockData';
 
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
 const ALLOWED_MIME_TYPES = new Set([
@@ -78,11 +77,9 @@ export async function POST(request: Request) {
   } catch (err) {
     console.error('[scan] Unexpected route error:', err);
 
-    // Guaranteed safe fallback: never crash or return empty
-    return NextResponse.json({
-      source: 'mock',
-      ingredients: MOCK_DETECTED_INGREDIENTS,
-      fallbackReason: (err as Error)?.message || 'Internal server error',
-    });
+    return NextResponse.json(
+      { error: (err as Error)?.message || 'Image analysis failed.' },
+      { status: 502 }
+    );
   }
 }

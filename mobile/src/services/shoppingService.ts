@@ -1,22 +1,15 @@
-import { primaryRecipes } from '../data/mockData';
-import { ShoppingItem } from '../types';
+import { Recipe, ShoppingItem } from '../types';
 
 export const shoppingService = {
-  getShoppingListForRecipe: async (recipeId?: string): Promise<ShoppingItem[]> => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const recipe = primaryRecipes.find((r) => r.id === recipeId) || primaryRecipes[0];
-        const items: ShoppingItem[] = recipe.missingIngredients.map((ing) => ({
-          id: `shop_${ing.id}`,
-          name: ing.name,
-          quantity: ing.quantity,
-          unit: ing.unit,
-          image: ing.image,
-          isPurchased: false,
-          recipeName: recipe.title,
-        }));
-        resolve(items);
-      }, 100);
-    });
+  getShoppingListForRecipe: async (recipe: Recipe): Promise<ShoppingItem[]> => {
+    return recipe.missingIngredients.map((ingredient) => ({
+      id: `shop_${ingredient.id}`,
+      name: ingredient.name,
+      quantity: ingredient.quantity,
+      unit: ingredient.unit,
+      image: ingredient.image,
+      isPurchased: false,
+      recipeName: recipe.title,
+    }));
   },
 };

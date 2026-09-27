@@ -143,9 +143,12 @@ export class KeyPool {
     this.providerName = options.providerName;
     this.quarantineDurationMs = options.quarantineDurationMs ?? 60_000;
 
-    const keyList = Array.isArray(rawKeys)
+    const keyList = (Array.isArray(rawKeys)
       ? rawKeys
-      : (rawKeys || '').split(',').map((k) => k.trim()).filter(Boolean);
+      : (rawKeys || '').split(',')
+    )
+      .map((k) => k.trim().replace(/^['"]+|['"]+$/g, ''))
+      .filter((k) => k.length > 0);
 
     this.keys = keyList.map((key) => ({
       key,

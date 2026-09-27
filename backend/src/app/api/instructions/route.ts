@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { dispatchInstructions } from '@/lib/ai/dispatcher';
-import { DEFAULT_MOCK_INSTRUCTIONS } from '@/lib/ai/mockData';
 
 interface InstructionsRequestBody {
   recipeId?: string;
@@ -75,11 +74,9 @@ export async function POST(request: Request) {
   } catch (err) {
     console.error('[instructions] Unexpected route error:', err);
 
-    return NextResponse.json({
-      source: 'mock',
-      recipeId: undefined,
-      instructions: DEFAULT_MOCK_INSTRUCTIONS,
-      fallbackReason: (err as Error)?.message || 'Internal server error',
-    });
+    return NextResponse.json(
+      { error: (err as Error)?.message || 'Instruction generation failed.' },
+      { status: 502 }
+    );
   }
 }

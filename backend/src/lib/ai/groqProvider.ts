@@ -19,8 +19,8 @@ export async function callGroqRecipes(
   preferences: { peopleCount: number; mealType: string; preference: string },
   options?: GroqTextOptions
 ): Promise<GeneratedRecipe[]> {
-  const primaryModel = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
-  const backupModel = process.env.GROQ_BACKUP_MODEL || 'llama-3.1-8b-instant';
+  const primaryModel = process.env.GROQ_MODEL || 'openai/gpt-oss-120b';
+  const backupModel = process.env.GROQ_BACKUP_MODEL || 'openai/gpt-oss-20b';
   const modelName = options?.model || (options?.useBackupModel ? backupModel : primaryModel);
   const timeoutMs = options?.timeoutMs || 20_000;
 
@@ -87,8 +87,8 @@ export async function callGroqInstructions(
   },
   options?: GroqTextOptions
 ): Promise<GeneratedInstructionStep[]> {
-  const primaryModel = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
-  const backupModel = process.env.GROQ_BACKUP_MODEL || 'llama-3.1-8b-instant';
+  const primaryModel = process.env.GROQ_MODEL || 'openai/gpt-oss-120b';
+  const backupModel = process.env.GROQ_BACKUP_MODEL || 'openai/gpt-oss-20b';
   const modelName = options?.model || (options?.useBackupModel ? backupModel : primaryModel);
   const timeoutMs = options?.timeoutMs || 20_000;
 

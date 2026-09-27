@@ -1,14 +1,8 @@
-import { initialDetectedIngredients } from '../data/mockData';
 import { Ingredient } from '../types';
 
 export const ingredientService = {
   getDetectedIngredients: async (): Promise<Ingredient[]> => {
-    // Simulates an async service fetch
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve([...initialDetectedIngredients]);
-      }, 100);
-    });
+    return [];
   },
 
   addIngredient: async (newIngredient: Omit<Ingredient, 'id'>): Promise<Ingredient> => {

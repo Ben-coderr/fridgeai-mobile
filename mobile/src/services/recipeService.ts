@@ -1,4 +1,3 @@
-import { alternateRecipes, primaryRecipes } from '../data/mockData';
 import { Ingredient, Recipe, RecipeStep, UserPreferences } from '../types';
 import { API_BASE_URL, USE_BACKEND } from '../config/api';
 
@@ -8,129 +7,70 @@ const DEFAULT_IMAGE =
 export const recipeService = {
   /**
    * Fetches recipes based on preferences and detected ingredients.
-   * If backend is active, calls POST /api/recipes with failover to local recipes.
+   * Calls POST /api/recipes and surfaces backend failures to the user.
    */
   getRecipes: async (
     preferences?: UserPreferences,
     ingredients?: Ingredient[],
-    useAlternate: boolean = false
+    _useAlternate: boolean = false
   ): Promise<Recipe[]> => {
-    if (USE_BACKEND && ingredients && ingredients.length > 0) {
-      try {
-        const response = await fetch(`${API_BASE_URL}/api/recipes`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            ingredients: ingredients.map((i) => ({
-              name: i.name,
-              quantity: i.quantity,
-              unit: i.unit,
-            })),
-            preferences: preferences || {
-              peopleCount: 2,
-              mealType: 'Dinner',
-              preference: 'Quick',
-            },
-          }),
-        });
-
-        if (response.ok) {
-          const data = (await response.json()) as { recipes: Recipe[]; source: string };
-          if (Array.isArray(data.recipes) && data.recipes.length > 0) {
-            const fallbackSet = useAlternate ? alternateRecipes : primaryRecipes;
-
-            return data.recipes.map((r, idx) => {
-              const fallbackRecipe = fallbackSet[idx % fallbackSet.length] || primaryRecipes[0];
-              return {
-                id: r.id || `recipe_${idx + 1}_${Date.now()}`,
-                name: r.name || r.title || fallbackRecipe.name,
-                title: r.title || r.name || fallbackRecipe.title,
-                description: r.description || fallbackRecipe.description,
-                image: r.image || fallbackRecipe.image || DEFAULT_IMAGE,
-                cookingTime: typeof r.cookingTime === 'number' ? r.cookingTime : fallbackRecipe.cookingTime,
-                prepTime: typeof r.prepTime === 'number' ? r.prepTime : fallbackRecipe.prepTime,
-                servings: typeof r.servings === 'number' ? r.servings : (preferences?.peopleCount || 2),
-                difficulty: r.difficulty || fallbackRecipe.difficulty || 'Medium',
-                isBestMatch: typeof r.isBestMatch === 'boolean' ? r.isBestMatch : idx === 0,
-                availableIngredients: (r.availableIngredients && r.availableIngredients.length > 0)
-                  ? r.availableIngredients.map((item, iIdx) => ({
-                      id: `avail_${idx}_${iIdx}`,
-                      name: item.name,
-                      quantity: item.quantity || 1,
-                      unit: item.unit || 'pcs',
-                      image: item.image || fallbackRecipe.availableIngredients[0]?.image || DEFAULT_IMAGE,
-                    }))
-                  : fallbackRecipe.availableIngredients,
-                missingIngredients: (r.missingIngredients && r.missingIngredients.length > 0)
-                  ? r.missingIngredients.map((item, mIdx) => ({
-                      id: `miss_${idx}_${mIdx}`,
-                      name: item.name,
-                      quantity: item.quantity || 1,
-                      unit: item.unit || 'pcs',
-                      image: item.image || fallbackRecipe.missingIngredients[0]?.image || DEFAULT_IMAGE,
-                    }))
-                  : fallbackRecipe.missingIngredients,
-                instructions: (r.instructions && r.instructions.length > 0)
-                  ? r.instructions
-                  : fallbackRecipe.instructions,
-              };
-            });
-          }
-        }
-      } catch (err) {
-        console.warn('[recipeService] Failed to fetch recipes from backend, using local mock:', err);
-      }
-    }
-
-    // Default local fallback
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve(useAlternate ? [...alternateRecipes] : [...primaryRecipes]);
-      }, 200);
+    if (!USE_BACKEND) throw new Error('AI recipe generation is disabled.');
+    if (!ingredients?.length) throw new Error('Scan a photo and confirm ingredients first.');
+    const response = await fetch(`${API_BASE_URL}/api/recipes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ingredients: ingredients.map((i) => ({ name: i.name, quantity: i.quantity, unit: i.unit })),
+        preferences: preferences || { peopleCount: 2, mealType: 'Dinner', preference: 'Quick' },
+      }),
     });
+
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => null) as { error?: string } | null;
+      throw new Error(errorBody?.error || `Recipe request failed (${response.status}).`);
+    }
+    const data = (await response.json()) as { recipes?: Recipe[] };
+    if (!Array.isArray(data.recipes) || data.recipes.length === 0) throw new Error('AI returned no recipes.');
+    return data.recipes.map((recipe, index) => ({
+      ...recipe,
+      id: recipe.id || `recipe_${index + 1}_${Date.now()}`,
+      name: recipe.name || recipe.title,
+      title: recipe.title || recipe.name,
+      image: recipe.image || DEFAULT_IMAGE,
+      servings: recipe.servings || preferences?.peopleCount || 2,
+      availableIngredients: (recipe.availableIngredients || []).map((item, itemIndex) => ({
+        ...item, id: `avail_${index}_${itemIndex}`, image: item.image || DEFAULT_IMAGE,
+      })),
+      missingIngredients: (recipe.missingIngredients || []).map((item, itemIndex) => ({
+        ...item, id: `miss_${index}_${itemIndex}`, image: item.image || DEFAULT_IMAGE,
+      })),
+      instructions: recipe.instructions || [],
+    }));
   },
 
   /**
    * Fetches cooking instructions for a specific recipe from POST /api/instructions.
    */
   getInstructions: async (recipe: Recipe): Promise<RecipeStep[]> => {
-    if (USE_BACKEND && recipe.title) {
-      try {
-        const response = await fetch(`${API_BASE_URL}/api/instructions`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            recipeId: recipe.id,
-            recipeTitle: recipe.title,
-            servings: recipe.servings,
-            ingredients: (recipe.availableIngredients || []).map((i) => ({
-              name: i.name,
-              quantity: i.quantity,
-              unit: i.unit,
-            })),
-          }),
-        });
-
-        if (response.ok) {
-          const data = (await response.json()) as { instructions: RecipeStep[] };
-          if (Array.isArray(data.instructions) && data.instructions.length > 0) {
-            return data.instructions;
-          }
-        }
-      } catch (err) {
-        console.warn('[recipeService] Failed to fetch instructions from backend:', err);
-      }
-    }
-
-    return recipe.instructions || primaryRecipes[0].instructions;
-  },
-
-  getRecipeById: async (id: string): Promise<Recipe | undefined> => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const all = [...primaryRecipes, ...alternateRecipes];
-        resolve(all.find((r) => r.id === id));
-      }, 100);
+    if (!USE_BACKEND || !recipe.title) throw new Error('AI instructions are unavailable.');
+    const response = await fetch(`${API_BASE_URL}/api/instructions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        recipeId: recipe.id,
+        recipeTitle: recipe.title,
+        servings: recipe.servings,
+        ingredients: (recipe.availableIngredients || []).map((i) => ({ name: i.name, quantity: i.quantity, unit: i.unit })),
+      }),
     });
+
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => null) as { error?: string } | null;
+      throw new Error(errorBody?.error || `Instruction request failed (${response.status}).`);
+    }
+    const data = (await response.json()) as { instructions?: RecipeStep[] };
+    if (!Array.isArray(data.instructions) || !data.instructions.length) throw new Error('AI returned no instructions.');
+    return data.instructions;
   },
+
 };

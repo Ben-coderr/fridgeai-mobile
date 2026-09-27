@@ -1,4 +1,4 @@
-import { KeyPool } from './keyPool';
+import { extractStatusCode, KeyPool } from './keyPool';
 import { callGeminiVision } from './geminiProvider';
 import { callOpenRouterVision } from './openrouterProvider';
 import { callGroqRecipes, callGroqInstructions } from './groqProvider';
@@ -6,6 +6,7 @@ import {
   DetectedIngredientItem,
   GeneratedRecipe,
   GeneratedInstructionStep,
+  ValidationError,
 } from './schemas';
 import {
   MOCK_DETECTED_INGREDIENTS,
@@ -19,9 +20,16 @@ import {
 // ─────────────────────────────────────────────────────────────
 function parseKeyList(envVarNames: string[]): string[] {
   for (const name of envVarNames) {
-    const val = process.env[name];
+    let val = process.env[name];
     if (val && val.trim().length > 0) {
-      return val.split(',').map((k) => k.trim()).filter(Boolean);
+      val = val.trim();
+      if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+        val = val.slice(1, -1);
+      }
+      return val
+        .split(',')
+        .map((k) => k.trim().replace(/^['"]+|['"]+$/g, ''))
+        .filter((k) => k.length > 0);
     }
   }
   return [];
@@ -30,6 +38,17 @@ function parseKeyList(envVarNames: string[]): string[] {
 let geminiPoolInstance: KeyPool | null = null;
 let openRouterPoolInstance: KeyPool | null = null;
 let groqPoolInstance: KeyPool | null = null;
+
+function summarizeProviderFailure(provider: string, error: unknown): string {
+  const statusCode = extractStatusCode(error);
+  if (error instanceof ValidationError) {
+    return `${provider} returned an unusable response.`;
+  }
+  if (statusCode) {
+    return `${provider} request failed (HTTP ${statusCode}).`;
+  }
+  return `${provider} request failed.`;
+}
 
 export function getGeminiPool(): KeyPool {
   if (!geminiPoolInstance) {
@@ -67,7 +86,7 @@ export function _resetPoolsForTesting(
 }
 
 // ─────────────────────────────────────────────────────────────
-// 1. Vision Dispatcher: Gemini -> OpenRouter -> Mock
+// 1. Vision Dispatcher: Gemini -> OpenRouter
 // ─────────────────────────────────────────────────────────────
 export interface VisionDispatchResult {
   source: 'gemini' | 'openrouter' | 'mock';
@@ -84,6 +103,8 @@ export async function dispatchVision(
     return { source: 'mock', ingredients: MOCK_DETECTED_INGREDIENTS };
   }
 
+  const failures: string[] = [];
+
   // Tier 1: Gemini Pool
   const geminiPool = getGeminiPool();
   if (geminiPool.size() > 0) {
@@ -95,8 +116,10 @@ export async function dispatchVision(
       console.log('[Dispatcher:Vision] Gemini succeeded.');
       return { source: 'gemini', ingredients };
     } catch (err) {
+      const message = (err as Error).message || 'Unknown Gemini error';
+      failures.push(summarizeProviderFailure('Gemini', err));
       console.warn(
-        `[Dispatcher:Vision] Gemini Tier 1 failed (${(err as Error).message}). Failing over to OpenRouter Tier 2...`
+        `[Dispatcher:Vision] Gemini Tier 1 failed (${message}). Failing over to OpenRouter Tier 2...`
       );
     }
   } else {
@@ -114,17 +137,17 @@ export async function dispatchVision(
       console.log('[Dispatcher:Vision] OpenRouter succeeded.');
       return { source: 'openrouter', ingredients };
     } catch (err) {
-      console.warn(
-        `[Dispatcher:Vision] OpenRouter Tier 2 failed (${(err as Error).message}). Failing over to Mock Tier 3...`
-      );
+      const message = (err as Error).message || 'Unknown OpenRouter error';
+      failures.push(summarizeProviderFailure('OpenRouter', err));
+      console.warn(`[Dispatcher:Vision] OpenRouter failed: ${message}`);
     }
   } else {
-    console.log('[Dispatcher:Vision] No OpenRouter keys configured. Skipping to Mock Tier 3...');
+    console.log('[Dispatcher:Vision] No OpenRouter keys configured.');
   }
 
-  // Tier 3: Deterministic Safe Fallback
-  console.log('[Dispatcher:Vision] Using safe deterministic mock fallback.');
-  return { source: 'mock', ingredients: MOCK_DETECTED_INGREDIENTS };
+  throw new Error(
+    `Image analysis failed with all configured AI providers. ${failures.join(' | ') || 'No provider keys are configured.'}`
+  );
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -205,16 +228,13 @@ export async function dispatchRecipes(
       console.log('[Dispatcher:Recipes] Groq backup model succeeded.');
       return { source: 'groq', recipes: scoreAndRankRecipes(recipes) };
     } catch (err) {
-      console.warn(
-        `[Dispatcher:Recipes] Groq backup model failed (${(err as Error).message}). Failing over to Mock Tier...`
-      );
+      console.warn(`[Dispatcher:Recipes] Groq backup model failed: ${(err as Error).message}`);
     }
   } else {
     console.log('[Dispatcher:Recipes] No Groq keys configured. Skipping to Mock Tier...');
   }
 
-  // Tier 3: Deterministic Safe Fallback
-  return { source: 'mock', recipes: scoreAndRankRecipes(MOCK_RECIPES) };
+  throw new Error('Recipe generation failed with all configured AI models. Check backend logs and Groq keys.');
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -265,17 +285,11 @@ export async function dispatchInstructions(recipeDetails: {
       console.log('[Dispatcher:Instructions] Groq backup model succeeded.');
       return { source: 'groq', instructions };
     } catch (err) {
-      console.warn(
-        `[Dispatcher:Instructions] Groq backup model failed (${(err as Error).message}). Failing over to Mock Tier...`
-      );
+      console.warn(`[Dispatcher:Instructions] Groq backup model failed: ${(err as Error).message}`);
     }
   } else {
     console.log('[Dispatcher:Instructions] No Groq keys configured. Skipping to Mock Tier...');
   }
 
-  // Tier 3: Deterministic Safe Fallback
-  const mockSteps =
-    (recipeDetails.recipeId && MOCK_INSTRUCTIONS_MAP[recipeDetails.recipeId]) ||
-    DEFAULT_MOCK_INSTRUCTIONS;
-  return { source: 'mock', instructions: mockSteps };
+  throw new Error('Recipe instructions could not be generated. Check backend logs and Groq keys.');
 }

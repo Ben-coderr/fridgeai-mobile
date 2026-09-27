@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
   ScrollView,
+  Alert,
   TouchableOpacity,
   StatusBar,
 } from 'react-native';
@@ -43,12 +44,15 @@ export const RecipesScreen: React.FC = () => {
     navigation.navigate('RecipeDetail', { recipeId: recipe.id });
   };
 
-  const handleRefreshRecipes = () => {
+  const handleRefreshRecipes = async () => {
     setRefreshing(true);
-    setTimeout(() => {
-      generateDifferentRecipes();
+    try {
+      await generateDifferentRecipes();
+    } catch (error) {
+      Alert.alert('Could not generate recipes', error instanceof Error ? error.message : 'Check your backend connection and try again.');
+    } finally {
       setRefreshing(false);
-    }, 400);
+    }
   };
 
   const handleViewShoppingList = () => {

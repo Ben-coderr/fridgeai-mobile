@@ -8,6 +8,7 @@ import {
   Animated,
   ActivityIndicator,
   StatusBar,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -60,7 +61,12 @@ export const ScanningScreen: React.FC = () => {
       (ingredients) => {
         setDetectedIngredients(ingredients);
         navigation.replace('Ingredients');
-      }
+      },
+      (error) => {
+        Alert.alert('Scan failed', error.message, [
+          { text: 'OK', onPress: () => navigation.replace('Home') },
+        ]);
+      },
     );
 
     return () => {

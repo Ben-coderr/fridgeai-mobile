@@ -12,7 +12,7 @@ export async function callOpenRouterVision(
   mimeType: string,
   options?: OpenRouterVisionOptions
 ): Promise<DetectedIngredientItem[]> {
-  const modelName = options?.model || process.env.OPENROUTER_MODEL || 'qwen/qwen2.5-vl-72b-instruct:free';
+  const modelName = options?.model || process.env.OPENROUTER_MODEL || 'qwen/qwen2.5-vl-72b-instruct';
   const timeoutMs = options?.timeoutMs || 25_000;
 
   const controller = new AbortController();

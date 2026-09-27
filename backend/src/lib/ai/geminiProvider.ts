@@ -13,11 +13,11 @@ export async function callGeminiVision(
   mimeType: string,
   options?: GeminiVisionOptions
 ): Promise<DetectedIngredientItem[]> {
-  const modelName = options?.model || process.env.GEMINI_MODEL || 'gemini-2.5-flash';
-  const timeoutMs = options?.timeoutMs || 20_000;
+  const primaryModel = options?.model || process.env.GEMINI_MODEL || 'gemini-flash-latest';
+  const fallbackModel = 'gemini-3.8-flash';
+  const timeoutMs = options?.timeoutMs || 25_000;
 
   const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: modelName });
 
   const imagePart = {
     inlineData: {
@@ -26,11 +26,26 @@ export async function callGeminiVision(
     },
   };
 
-  const apiPromise = (async () => {
+  const tryModel = async (m: string) => {
+    const model = genAI.getGenerativeModel({ model: m });
     const result = await model.generateContent([VISION_SYSTEM_PROMPT, imagePart]);
     const response = await result.response;
     const text = response.text();
     return extractAndParseJson(text, validateDetectedIngredients);
+  };
+
+  const apiPromise = (async () => {
+    try {
+      return await tryModel(primaryModel);
+    } catch (err) {
+      if (primaryModel !== fallbackModel) {
+        console.warn(
+          `[geminiProvider] Model ${primaryModel} failed (${(err as Error).message}). Retrying with ${fallbackModel}...`
+        );
+        return await tryModel(fallbackModel);
+      }
+      throw err;
+    }
   })();
 
   const timeoutPromise = new Promise<never>((_, reject) => {
