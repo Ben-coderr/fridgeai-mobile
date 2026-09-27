@@ -23,78 +23,48 @@ function today(): string {
 // ─── HTML template ───────────────────────────────────────────────────────────
 
 function buildHtml(recipes: Recipe[], shoppingList: ShoppingItem[], ingredients: Ingredient[]): string {
-  const purchased  = shoppingList.filter((i) => i.isPurchased);
-  const toBuy      = shoppingList.filter((i) => !i.isPurchased);
+  const toBuy = shoppingList.filter((item) => !item.isPurchased);
+  const itemRows = (items: Ingredient[] | ShoppingItem[], variant: 'have' | 'buy') =>
+    items.length
+      ? items.map((item) => `
+          <div class="item-row">
+            <span class="item-dot ${variant}">${variant === 'have' ? '✓' : '•'}</span>
+            <span class="item-name">${escape(item.name)}</span>
+            <span class="item-quantity">${item.quantity} ${escape(item.unit)}</span>
+          </div>`).join('')
+      : '<p class="empty">Nothing to add.</p>';
 
-  const ingredientsRows = ingredients
-    .map(
-      (i) => `
-        <tr>
-          <td style="padding:6px 0;border-bottom:1px solid #eee;">
-            <span style="font-weight:600;color:#1a1a1a;">${escape(i.name)}</span>
-          </td>
-          <td style="padding:6px 0;border-bottom:1px solid #eee;text-align:right;color:#555;">
-            ${i.quantity} ${escape(i.unit)}
-          </td>
-        </tr>`
-    )
-    .join('');
+  const mealCards = recipes.map((recipe) => `
+    <div class="meal-card">
+      ${recipe.image ? `<img class="meal-image" src="${escape(recipe.image)}" />` : '<div class="meal-image placeholder"></div>'}
+      <div class="meal-copy">
+        <div class="meal-title">${escape(recipe.title)}</div>
+        <div class="meal-meta">◷ ${recipe.cookingTime} min &nbsp; · &nbsp; ♙ ${recipe.servings} servings</div>
+      </div>
+    </div>`).join('') || '<p class="empty">No meals selected.</p>';
 
-  const toBuyRows = toBuy
-    .map(
-      (i) => `
-        <tr>
-          <td style="padding:6px 0;border-bottom:1px solid #eee;">
-            <span style="font-weight:600;color:#1a1a1a;">${escape(i.name)}</span>
-          </td>
-          <td style="padding:6px 0;border-bottom:1px solid #eee;text-align:right;color:#e67e22;">
-            ${i.quantity} ${escape(i.unit)}
-          </td>
-        </tr>`
-    )
-    .join('');
-
-  const purchasedRows = purchased
-    .map(
-      (i) => `
-        <tr>
-          <td style="padding:6px 0;border-bottom:1px solid #eee;">
-            <span style="font-weight:600;color:#888;text-decoration:line-through;">${escape(i.name)}</span>
-          </td>
-          <td style="padding:6px 0;border-bottom:1px solid #eee;text-align:right;color:#aaa;">
-            ${i.quantity} ${escape(i.unit)}
-          </td>
-        </tr>`
-    )
-    .join('');
-
-  const mealCards = recipes
-    .map(
-      (r) => `
-      <div style="margin-bottom:28px;border:1px solid #e8e8e8;border-radius:12px;overflow:hidden;">
-        <div style="background:#f9f9f9;padding:14px 16px;border-bottom:1px solid #e8e8e8;">
-          <div style="font-size:17px;font-weight:700;color:#1a1a1a;">${escape(r.title)}</div>
-          <div style="font-size:12px;color:#888;margin-top:2px;">
-            ⏱ ${r.cookingTime} min &nbsp;·&nbsp; 👤 ${r.servings} servings &nbsp;·&nbsp; 📊 ${escape(r.difficulty)}
-          </div>
+  const recipeSections = recipes.map((recipe, recipeIndex) => `
+    <section class="recipe-detail ${recipeIndex > 0 ? 'page-break' : ''}">
+      <div class="recipe-heading">
+        ${recipe.image ? `<img class="recipe-image" src="${escape(recipe.image)}" />` : ''}
+        <div>
+          <h2>${escape(recipe.title)}</h2>
+          <p>◷ ${recipe.cookingTime} min &nbsp; · &nbsp; ♙ ${recipe.servings} servings <span class="difficulty">${escape(recipe.difficulty)}</span></p>
         </div>
-        <div style="padding:14px 16px;">
-          <div style="margin-bottom:12px;">
-            <div style="font-size:13px;font-weight:700;color:#22C55E;margin-bottom:6px;">Ingredients</div>
-            <ul style="margin:0;padding-left:18px;color:#333;font-size:13px;">
-              ${r.availableIngredients.map((i) => `<li style="margin-bottom:3px;">${escape(i.name)} — ${i.quantity} ${escape(i.unit)}</li>`).join('')}
-            </ul>
-          </div>
-          <div>
-            <div style="font-size:13px;font-weight:700;color:#1a1a1a;margin-bottom:6px;">Instructions</div>
-            <ol style="margin:0;padding-left:18px;color:#333;font-size:13px;">
-              ${r.instructions.map((s) => `<li style="margin-bottom:5px;">${escape(s.description)}</li>`).join('')}
-            </ol>
-          </div>
+      </div>
+      <div class="recipe-columns">
+        <div class="recipe-panel ingredients-panel">
+          <h3>Ingredients</h3>
+          <ul>${recipe.availableIngredients.map((item) => `<li>${escape(item.name)} <span>${item.quantity} ${escape(item.unit)}</span></li>`).join('')}</ul>
+          ${recipe.missingIngredients.length ? `<h4>Also buy</h4><ul>${recipe.missingIngredients.map((item) => `<li>${escape(item.name)} <span>${item.quantity} ${escape(item.unit)}</span></li>`).join('')}</ul>` : ''}
         </div>
-      </div>`
-    )
-    .join('');
+        <div class="recipe-panel instruction-panel">
+          <h3>Instructions</h3>
+          ${recipe.instructions.map((step, index) => `
+            <div class="instruction"><span>${step.step || index + 1}</span><div><strong>${escape(step.title)}</strong><p>${escape(step.description)}</p></div></div>`).join('') || '<p class="empty">Instructions are not available yet.</p>'}
+        </div>
+      </div>
+    </section>`).join('');
 
   return `<!DOCTYPE html>
 <html>
@@ -104,31 +74,32 @@ function buildHtml(recipes: Recipe[], shoppingList: ShoppingItem[], ingredients:
   <title>FridgeAI Meal Plan Report</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: -apple-system, Helvetica, Arial, sans-serif; color: #1a1a1a; background: #fff; padding: 32px; }
-    .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; padding-bottom: 20px; border-bottom: 2px solid #22C55E; }
-    .brand-name { font-size: 22px; font-weight: 800; }
-    .brand-green { color: #22C55E; }
-    .brand-sub  { font-size: 11px; color: #888; margin-top: 2px; }
-    .report-meta { text-align: right; font-size: 12px; color: #555; }
-    .section-title { font-size: 16px; font-weight: 700; color: #1a1a1a; margin-bottom: 12px; border-left: 4px solid #22C55E; padding-left: 10px; }
-    .section { margin-bottom: 28px; }
-    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 28px; }
-    .card { border: 1px solid #e8e8e8; border-radius: 10px; padding: 14px 16px; }
-    .card-title { font-size: 13px; font-weight: 700; margin-bottom: 8px; }
-    .green-title { color: #22C55E; }
-    .orange-title { color: #e67e22; }
-    table { width: 100%; border-collapse: collapse; }
-    .footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid #eee; font-size: 11px; color: #aaa; text-align: center; }
+    @page { margin: 18mm 14mm; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; color: #102A36; background: #fff; }
+    .header { display:flex; justify-content:space-between; align-items:flex-start; padding-bottom:16px; border-bottom:2px solid #DFF4E5; }
+    .brand { display:flex; align-items:center; gap:9px; } .brand-mark { width:30px; height:30px; border-radius:9px; background:#0E923F; color:#fff; text-align:center; line-height:30px; font-size:17px; }
+    .brand-name { font-size:22px; font-weight:800; letter-spacing:-.5px; } .brand-green { color:#0E923F; } .brand-sub { color:#687780; font-size:10px; margin-top:2px; }
+    .report-meta { text-align:right; font-size:10px; color:#687780; line-height:1.55; } .report-meta strong { display:block; color:#102A36; font-size:12px; }
+    .section-title { font-size:16px; font-weight:800; margin:24px 0 11px; color:#102A36; }
+    .two-col { display:grid; grid-template-columns:1fr 1fr; gap:14px; } .summary-card { border-radius:12px; padding:14px; min-height:142px; }
+    .have-card { background:#F0FAF2; } .buy-card { background:#FFF6ED; } .card-title { font-size:12px; font-weight:800; margin-bottom:8px; } .have-card .card-title { color:#167A37; } .buy-card .card-title { color:#B45309; }
+    .item-row { display:flex; align-items:center; padding:4px 0; font-size:10px; } .item-dot { width:15px; height:15px; border-radius:50%; text-align:center; line-height:15px; margin-right:7px; font-size:9px; font-weight:800; } .item-dot.have { background:#32B656; color:#fff; } .item-dot.buy { background:#F59E0B; color:#fff; }
+    .item-name { flex:1; font-weight:600; } .item-quantity { color:#687780; } .empty { font-size:10px; color:#94A3B8; }
+    .meal-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; } .meal-card { border:1px solid #E6ECE8; border-radius:10px; overflow:hidden; background:#fff; } .meal-image { width:100%; height:84px; object-fit:cover; display:block; background:#EDF4EF; } .meal-copy { padding:7px; } .meal-title { font-weight:800; font-size:10px; line-height:1.25; } .meal-meta { color:#687780; font-size:8px; margin-top:5px; }
+    .recipe-detail { margin-top:24px; } .recipe-heading { display:flex; gap:12px; align-items:center; border-bottom:1px solid #E6ECE8; padding-bottom:12px; margin-bottom:12px; } .recipe-image { width:76px; height:60px; object-fit:cover; border-radius:9px; background:#EDF4EF; } h2 { font-size:17px; margin-bottom:5px; } .recipe-heading p { color:#687780; font-size:10px; } .difficulty { display:inline-block; color:#167A37; background:#EAF7E8; border-radius:8px; padding:3px 6px; font-weight:800; }
+    .recipe-columns { display:grid; grid-template-columns:.8fr 1.35fr; gap:12px; } .recipe-panel { border-radius:11px; padding:12px; } .ingredients-panel { background:#F1FAF3; } .instruction-panel { background:#F7FBF8; } h3 { font-size:11px; margin-bottom:8px; color:#145D2F; } h4 { color:#B45309; font-size:10px; margin:10px 0 5px; } ul { padding:0; list-style:none; } li { font-size:10px; padding:3px 0; border-bottom:1px solid rgba(16,42,54,.07); } li span { float:right; color:#687780; }
+    .instruction { display:flex; gap:7px; padding:4px 0; } .instruction > span { flex:0 0 16px; width:16px; height:16px; border-radius:50%; background:#32B656; color:#fff; text-align:center; line-height:16px; font-size:8px; font-weight:800; } .instruction strong { font-size:9px; } .instruction p { color:#536571; font-size:9px; line-height:1.35; margin-top:1px; }
+    .footer { margin-top:30px; padding-top:12px; border-top:1px solid #E6ECE8; color:#94A3B8; text-align:center; font-size:9px; } .page-break { page-break-before:always; }
   </style>
 </head>
 <body>
 
   <!-- Header -->
   <div class="header">
-    <div>
-      <div class="brand-name">🌿 <span class="brand-green">Fridge</span>AI</div>
+    <div class="brand">
+      <div class="brand-mark">♨</div><div><div class="brand-name"><span class="brand-green">Fridge</span>AI</div>
       <div class="brand-sub">Personalized meals from your fridge</div>
-    </div>
+    </div></div>
     <div class="report-meta">
       <div style="font-weight:700;font-size:14px;">Meal Plan Report</div>
       <div>${today()}</div>
@@ -138,22 +109,22 @@ function buildHtml(recipes: Recipe[], shoppingList: ShoppingItem[], ingredients:
   <!-- 1. Ingredients Overview -->
   <div class="section-title">1. Ingredients Overview</div>
   <div class="two-col">
-    <div class="card">
-      <div class="card-title green-title">✅ Items you had (${ingredients.length})</div>
-      <table>${ingredientsRows || '<tr><td style="color:#aaa;font-size:13px;">No items</td></tr>'}</table>
+    <div class="summary-card have-card">
+      <div class="card-title">✓ &nbsp;Items you had (${ingredients.length})</div>
+      ${itemRows(ingredients, 'have')}
     </div>
-    <div class="card">
-      <div class="card-title orange-title">🛒 Items to purchase (${toBuy.length})</div>
-      <table>${toBuyRows || '<tr><td style="color:#aaa;font-size:13px;">Nothing to buy!</td></tr>'}</table>
-      ${purchasedRows ? `<div style="margin-top:10px;"><div class="card-title" style="color:#aaa;font-size:12px;">✓ Already purchased</div><table>${purchasedRows}</table></div>` : ''}
+    <div class="summary-card buy-card">
+      <div class="card-title">🛒 &nbsp;Items to purchase (${toBuy.length})</div>
+      ${itemRows(toBuy, 'buy')}
     </div>
   </div>
 
   <!-- 2. Selected Meals -->
   <div class="section-title">2. Selected Meals (${recipes.length})</div>
-  <div class="section">
-    ${mealCards}
-  </div>
+  <div class="meal-grid">${mealCards}</div>
+
+  <div class="section-title">3. Recipes &amp; Instructions</div>
+  ${recipeSections}
 
   <div class="footer">Generated by FridgeAI · ${today()}</div>
 </body>

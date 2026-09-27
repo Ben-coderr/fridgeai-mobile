@@ -14,7 +14,7 @@ export async function callGeminiVision(
   options?: GeminiVisionOptions
 ): Promise<DetectedIngredientItem[]> {
   const primaryModel = options?.model || process.env.GEMINI_MODEL || 'gemini-flash-latest';
-  const fallbackModel = 'gemini-3.8-flash';
+  const candidateModels = Array.from(new Set([primaryModel, 'gemini-3.7-flash', 'gemini-flash-lite-latest']));
   const timeoutMs = options?.timeoutMs || 25_000;
 
   const genAI = new GoogleGenerativeAI(apiKey);
@@ -28,24 +28,31 @@ export async function callGeminiVision(
 
   const tryModel = async (m: string) => {
     const model = genAI.getGenerativeModel({ model: m });
-    const result = await model.generateContent([VISION_SYSTEM_PROMPT, imagePart]);
-    const response = await result.response;
-    const text = response.text();
-    return extractAndParseJson(text, validateDetectedIngredients);
+    const contentPromise = (async () => {
+      const result = await model.generateContent([VISION_SYSTEM_PROMPT, imagePart]);
+      const response = await result.response;
+      const text = response.text();
+      return extractAndParseJson(text, validateDetectedIngredients);
+    })();
+
+    const singleTimeout = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error(`Model ${m} timed out after 15000ms`)), 15_000);
+    });
+
+    return Promise.race([contentPromise, singleTimeout]);
   };
 
   const apiPromise = (async () => {
-    try {
-      return await tryModel(primaryModel);
-    } catch (err) {
-      if (primaryModel !== fallbackModel) {
-        console.warn(
-          `[geminiProvider] Model ${primaryModel} failed (${(err as Error).message}). Retrying with ${fallbackModel}...`
-        );
-        return await tryModel(fallbackModel);
+    let lastErr: unknown = null;
+    for (const m of candidateModels) {
+      try {
+        return await tryModel(m);
+      } catch (err) {
+        lastErr = err;
+        console.warn(`[geminiProvider] Model ${m} failed (${(err as Error).message}). Trying next candidate...`);
       }
-      throw err;
     }
+    throw lastErr;
   })();
 
   const timeoutPromise = new Promise<never>((_, reject) => {

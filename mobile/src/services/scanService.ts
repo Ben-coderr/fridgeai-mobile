@@ -1,12 +1,12 @@
 import { Ingredient, ScanningStep } from '../types';
 import { API_BASE_URL, USE_BACKEND } from '../config/api';
 import { foodImages } from '../data/mockData';
+import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
+import { getIngredientImage } from '../utils/imageHelper';
 
 // ─────────────────────────────────────────────────────────────
 // Image URL lookup by ingredient name (keyword matching)
 // ─────────────────────────────────────────────────────────────
-const FALLBACK_IMAGE =
-  'https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=300&q=80';
 
 const NAME_TO_IMAGE: Record<string, string> = {
   egg:           foodImages.eggs,
@@ -40,7 +40,8 @@ function imageForIngredient(name: string): string {
   for (const [k, url] of Object.entries(NAME_TO_IMAGE)) {
     if (key.includes(k) || k.includes(key)) return url;
   }
-  return FALLBACK_IMAGE;
+  // Universal fallback: TheMealDB transparent PNG CDN
+  return getIngredientImage(name);
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -50,19 +51,39 @@ interface RawDetected {
   name: string;
   quantity: number;
   unit: string;
+  image?: string;
+}
+
+/**
+ * Cameras and photo libraries can return HEIC, HEIF, WEBP, or content URIs.
+ * Convert every source to a JPEG in the local cache before creating FormData,
+ * so iOS and Android upload a format the backend and vision providers accept.
+ */
+async function createScanJpeg(imageUri: string): Promise<string> {
+  try {
+    const result = await manipulateAsync(imageUri, [{ resize: { width: 1600 } }], {
+      compress: 0.82,
+      format: SaveFormat.JPEG,
+    });
+    return result.uri;
+  } catch {
+    throw new Error('This photo could not be converted to JPEG. Choose a standard photo and try again.');
+  }
 }
 
 // ─────────────────────────────────────────────────────────────
 // Upload image to /api/scan and get back detected ingredients
 // ─────────────────────────────────────────────────────────────
-async function analyzeImageWithBackend(imageUri: string): Promise<Ingredient[]> {
+async function analyzeImageWithBackend(imageUri: string, _capturedBase64?: string): Promise<Ingredient[]> {
+  const jpegUri = await createScanJpeg(imageUri);
+
   // Build a multipart FormData payload
   const formData = new FormData();
 
   if (typeof window !== 'undefined') {
     // Browsers require a Blob or File. The React Native URI object is not a
     // valid web FormData file and causes the backend to receive no image.
-    const imageResponse = await fetch(imageUri);
+    const imageResponse = await fetch(jpegUri);
     if (!imageResponse.ok) {
       throw new Error('Could not read the selected image before upload.');
     }
@@ -71,7 +92,7 @@ async function analyzeImageWithBackend(imageUri: string): Promise<Ingredient[]> 
   } else {
     // React Native accepts this URI-backed file representation.
     formData.append('image', {
-      uri: imageUri,
+      uri: jpegUri,
       name: 'fridge.jpg',
       type: 'image/jpeg',
     } as unknown as Blob);
@@ -95,7 +116,7 @@ async function analyzeImageWithBackend(imageUri: string): Promise<Ingredient[]> 
     name: item.name,
     quantity: item.quantity ?? 1,
     unit: item.unit ?? 'pcs',
-    image: imageForIngredient(item.name),
+    image: item.image || imageForIngredient(item.name),
   }));
 }
 
@@ -116,7 +137,8 @@ export const scanService = {
     imageUri: string | undefined,
     onStepUpdate: (steps: ScanningStep[]) => void,
     onComplete: (ingredients: Ingredient[]) => void,
-    onError: (error: Error) => void
+    onError: (error: Error) => void,
+    capturedBase64?: string
   ): (() => void) => {
     let cancelled = false;
 
@@ -152,7 +174,7 @@ export const scanService = {
       if (!cancelled) onStepUpdate(makeSteps('completed', 'completed', 'completed', 'active'));
     }, 1400);
 
-    analyzeImageWithBackend(imageUri).then((ingredients) => {
+    analyzeImageWithBackend(imageUri, capturedBase64).then((ingredients) => {
       if (cancelled) return;
       onStepUpdate(makeSteps('completed', 'completed', 'completed', 'completed'));
       setTimeout(() => {

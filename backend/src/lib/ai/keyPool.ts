@@ -264,7 +264,18 @@ export class KeyPool {
     let lastError: unknown = null;
 
     while (attemptedKeys.size < this.keys.length) {
-      const key = this.getNextKey();
+      let key = this.getNextKey();
+      // If no healthy keys are currently available (e.g. all keys in pool are quarantined),
+      // allow attempting an unattempted quarantined key so temporary spikes don't lock out the app.
+      if (!key) {
+        const candidate = this.keys.find(
+          (k) => k.status === 'quarantined' && !attemptedKeys.has(k.key)
+        );
+        if (candidate) {
+          key = candidate.key;
+        }
+      }
+
       if (!key || attemptedKeys.has(key)) {
         break;
       }

@@ -13,7 +13,7 @@ import { PdfExportScreen } from '../screens/PdfExportScreen';
 
 export type RootStackParamList = {
   Home: undefined;
-  Scanning: { imageUri?: string } | undefined;
+  Scanning: { imageUri?: string; base64?: string } | undefined;
   Ingredients: undefined;
   Preferences: undefined;
   Recipes: undefined;

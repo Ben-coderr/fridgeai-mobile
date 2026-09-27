@@ -180,7 +180,7 @@ async function runAllTests() {
       ];
     });
 
-    const ranked = scoreAndRankRecipes(rawRecipes);
+    const ranked = await scoreAndRankRecipes(rawRecipes);
     report(
       'Scenario E: Groq succeeds + backend recipe ranking',
       ranked[0].id === 'rec-2' && ranked[0].isBestMatch === true && ranked[1].isBestMatch === false
@@ -238,7 +238,7 @@ async function runAllTests() {
   // Scenario H: All text providers fail -> mock response
   // ─────────────────────────────────────────────────────────
   try {
-    const fallbackRecipes = scoreAndRankRecipes(MOCK_RECIPES);
+    const fallbackRecipes = await scoreAndRankRecipes(MOCK_RECIPES);
     const fallbackInstructions = MOCK_INSTRUCTIONS_MAP['mediterranean-shakshuka'];
     report(
       'Scenario H: All text providers fail -> mock response',

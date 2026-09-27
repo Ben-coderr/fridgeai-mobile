@@ -14,6 +14,7 @@ import {
   MOCK_INSTRUCTIONS_MAP,
   DEFAULT_MOCK_INSTRUCTIONS,
 } from './mockData';
+import { resolveRecipeImage, getIngredientImageUrl } from './imageResolver';
 
 // ─────────────────────────────────────────────────────────────
 // Key Pools Singleton Initialization
@@ -110,8 +111,9 @@ export async function dispatchVision(
   if (geminiPool.size() > 0) {
     try {
       console.log('[Dispatcher:Vision] Attempting Tier 1 (Gemini)...');
-      const ingredients = await geminiPool.executeWithRetry((key) =>
-        callGeminiVision(key, imageBuffer, mimeType)
+      const ingredients = await geminiPool.executeWithRetry(
+        (key) => callGeminiVision(key, imageBuffer, mimeType, { timeoutMs: 40_000 }),
+        45_000
       );
       console.log('[Dispatcher:Vision] Gemini succeeded.');
       return { source: 'gemini', ingredients };
@@ -131,8 +133,9 @@ export async function dispatchVision(
   if (openRouterPool.size() > 0) {
     try {
       console.log('[Dispatcher:Vision] Attempting Tier 2 (OpenRouter)...');
-      const ingredients = await openRouterPool.executeWithRetry((key) =>
-        callOpenRouterVision(key, imageBuffer, mimeType)
+      const ingredients = await openRouterPool.executeWithRetry(
+        (key) => callOpenRouterVision(key, imageBuffer, mimeType, { timeoutMs: 40_000 }),
+        45_000
       );
       console.log('[Dispatcher:Vision] OpenRouter succeeded.');
       return { source: 'openrouter', ingredients };
@@ -162,7 +165,12 @@ export interface RecipesDispatchResult {
  * Calculates backend ingredient coverage score and marks the best match.
  * Sorts recipes by coverage ratio: availableCount / (availableCount + missingCount).
  */
-export function scoreAndRankRecipes(recipes: GeneratedRecipe[]): GeneratedRecipe[] {
+/**
+ * Calculates backend ingredient coverage score and marks the best match.
+ * Sorts recipes by coverage ratio: availableCount / (availableCount + missingCount).
+ * Dynamically resolves high-definition food photos and ingredient thumbnails.
+ */
+export async function scoreAndRankRecipes(recipes: GeneratedRecipe[]): Promise<GeneratedRecipe[]> {
   if (recipes.length === 0) return [];
 
   const scored = recipes.map((recipe) => {
@@ -179,18 +187,35 @@ export function scoreAndRankRecipes(recipes: GeneratedRecipe[]): GeneratedRecipe
   // Take maximum 3 recipes
   const top3 = scored.slice(0, 3);
 
-  // Highest coverage recipe is best match
-  return top3.map((recipe, idx) => {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { _coverage, ...cleanRecipe } = recipe;
-    return {
-      ...cleanRecipe,
-      isBestMatch: idx === 0,
-      image:
+  // Highest coverage recipe is best match, resolve images in parallel
+  return Promise.all(
+    top3.map(async (recipe, idx) => {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { _coverage, ...cleanRecipe } = recipe;
+
+      const imageUrl =
         cleanRecipe.image ||
-        'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80',
-    };
-  });
+        (await resolveRecipeImage(cleanRecipe.title || cleanRecipe.name, idx));
+
+      const enrichedAvail = (cleanRecipe.availableIngredients || []).map((item) => ({
+        ...item,
+        image: item.image || getIngredientImageUrl(item.name),
+      }));
+
+      const enrichedMiss = (cleanRecipe.missingIngredients || []).map((item) => ({
+        ...item,
+        image: item.image || getIngredientImageUrl(item.name),
+      }));
+
+      return {
+        ...cleanRecipe,
+        isBestMatch: idx === 0,
+        image: imageUrl,
+        availableIngredients: enrichedAvail,
+        missingIngredients: enrichedMiss,
+      };
+    })
+  );
 }
 
 export async function dispatchRecipes(
@@ -199,7 +224,7 @@ export async function dispatchRecipes(
 ): Promise<RecipesDispatchResult> {
   if (process.env.MOCK_AI === 'true') {
     console.log('[Dispatcher:Recipes] MOCK_AI is enabled. Returning mock recipes.');
-    return { source: 'mock', recipes: scoreAndRankRecipes(MOCK_RECIPES) };
+    return { source: 'mock', recipes: await scoreAndRankRecipes(MOCK_RECIPES) };
   }
 
   const groqPool = getGroqPool();
@@ -212,7 +237,7 @@ export async function dispatchRecipes(
         callGroqRecipes(key, ingredients, preferences, { useBackupModel: false })
       );
       console.log('[Dispatcher:Recipes] Groq primary model succeeded.');
-      return { source: 'groq', recipes: scoreAndRankRecipes(recipes) };
+      return { source: 'groq', recipes: await scoreAndRankRecipes(recipes) };
     } catch (err) {
       console.warn(
         `[Dispatcher:Recipes] Groq primary model failed (${(err as Error).message}). Attempting backup model...`
@@ -226,7 +251,7 @@ export async function dispatchRecipes(
         callGroqRecipes(key, ingredients, preferences, { useBackupModel: true })
       );
       console.log('[Dispatcher:Recipes] Groq backup model succeeded.');
-      return { source: 'groq', recipes: scoreAndRankRecipes(recipes) };
+      return { source: 'groq', recipes: await scoreAndRankRecipes(recipes) };
     } catch (err) {
       console.warn(`[Dispatcher:Recipes] Groq backup model failed: ${(err as Error).message}`);
     }

@@ -1,8 +1,6 @@
 import { Ingredient, Recipe, RecipeStep, UserPreferences } from '../types';
 import { API_BASE_URL, USE_BACKEND } from '../config/api';
-
-const DEFAULT_IMAGE =
-  'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80';
+import { getIngredientImage, getRecipeImage } from '../utils/imageHelper';
 
 export const recipeService = {
   /**
@@ -31,21 +29,28 @@ export const recipeService = {
     }
     const data = (await response.json()) as { recipes?: Recipe[] };
     if (!Array.isArray(data.recipes) || data.recipes.length === 0) throw new Error('AI returned no recipes.');
-    return data.recipes.map((recipe, index) => ({
-      ...recipe,
-      id: recipe.id || `recipe_${index + 1}_${Date.now()}`,
-      name: recipe.name || recipe.title,
-      title: recipe.title || recipe.name,
-      image: recipe.image || DEFAULT_IMAGE,
-      servings: recipe.servings || preferences?.peopleCount || 2,
-      availableIngredients: (recipe.availableIngredients || []).map((item, itemIndex) => ({
-        ...item, id: `avail_${index}_${itemIndex}`, image: item.image || DEFAULT_IMAGE,
-      })),
-      missingIngredients: (recipe.missingIngredients || []).map((item, itemIndex) => ({
-        ...item, id: `miss_${index}_${itemIndex}`, image: item.image || DEFAULT_IMAGE,
-      })),
-      instructions: recipe.instructions || [],
-    }));
+    return data.recipes.map((recipe, index) => {
+      const title = recipe.title || recipe.name || 'Delicious Meal';
+      return {
+        ...recipe,
+        id: recipe.id || `recipe_${index + 1}_${Date.now()}`,
+        name: recipe.name || title,
+        title: title,
+        image: recipe.image || getRecipeImage(title, index),
+        servings: recipe.servings || preferences?.peopleCount || 2,
+        availableIngredients: (recipe.availableIngredients || []).map((item, itemIndex) => ({
+          ...item,
+          id: `avail_${index}_${itemIndex}`,
+          image: item.image || getIngredientImage(item.name),
+        })),
+        missingIngredients: (recipe.missingIngredients || []).map((item, itemIndex) => ({
+          ...item,
+          id: `miss_${index}_${itemIndex}`,
+          image: item.image || getIngredientImage(item.name),
+        })),
+        instructions: recipe.instructions || [],
+      };
+    });
   },
 
   /**

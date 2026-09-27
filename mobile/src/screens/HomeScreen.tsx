@@ -37,12 +37,16 @@ export const HomeScreen: React.FC = () => {
 
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ['images'],
-        allowsEditing: true,
+        allowsEditing: false,
         quality: 0.85,
+        base64: true,
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        navigation.navigate('Scanning', { imageUri: result.assets[0].uri });
+        navigation.navigate('Scanning', {
+          imageUri: result.assets[0].uri,
+          base64: result.assets[0].base64 ?? undefined,
+        });
       }
     } catch (error) {
       Alert.alert('Camera unavailable', error instanceof Error ? error.message : 'Unable to open the camera.');
@@ -63,12 +67,16 @@ export const HomeScreen: React.FC = () => {
 
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
-        allowsEditing: true,
+        allowsEditing: false,
         quality: 0.85,
+        base64: true,
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        navigation.navigate('Scanning', { imageUri: result.assets[0].uri });
+        navigation.navigate('Scanning', {
+          imageUri: result.assets[0].uri,
+          base64: result.assets[0].base64 ?? undefined,
+        });
       }
     } catch (error) {
       Alert.alert('Photo library unavailable', error instanceof Error ? error.message : 'Unable to open your photos.');

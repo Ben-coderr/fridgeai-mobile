@@ -37,19 +37,19 @@ export function validateDetectedIngredients(data: unknown): DetectedIngredientIt
   }
 
   if (list.length === 0) {
-    throw new ValidationError('Ingredient list cannot be empty.');
+    return [];
   }
 
-  return list.map((item, idx) => {
-    if (!item || typeof item !== 'object') {
-      throw new ValidationError(`Item at index ${idx} is not an object.`);
-    }
+  const validItems: DetectedIngredientItem[] = [];
+
+  for (let idx = 0; idx < list.length; idx++) {
+    const item = list[idx];
+    if (!item || typeof item !== 'object') continue;
 
     const obj = item as Record<string, unknown>;
-    const name = typeof obj.name === 'string' && obj.name.trim().length > 0 ? obj.name.trim() : null;
-    if (!name) {
-      throw new ValidationError(`Item at index ${idx} is missing a valid 'name'.`);
-    }
+    const rawName = obj.name || obj.label || obj.item || obj.ingredient;
+    const name = typeof rawName === 'string' && rawName.trim().length > 0 ? rawName.trim() : null;
+    if (!name) continue;
 
     const quantity = typeof obj.quantity === 'number' && !isNaN(obj.quantity) && obj.quantity > 0
       ? obj.quantity
@@ -63,8 +63,10 @@ export function validateDetectedIngredients(data: unknown): DetectedIngredientIt
       ? obj.category.trim()
       : undefined;
 
-    return { name, quantity, unit, category };
-  });
+    validItems.push({ name, quantity, unit, category });
+  }
+
+  return validItems;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -74,6 +76,7 @@ export interface GeneratedIngredientSummary {
   name: string;
   quantity: number;
   unit: string;
+  image?: string;
 }
 
 export interface GeneratedInstructionStep {
@@ -277,12 +280,14 @@ export function extractAndParseJson<T>(rawText: string, validator: (data: unknow
     isObject = false;
   }
 
-  if (startIdx !== -1) {
-    const endChar = isObject ? '}' : ']';
-    const lastIdx = cleaned.lastIndexOf(endChar);
-    if (lastIdx > startIdx) {
-      cleaned = cleaned.substring(startIdx, lastIdx + 1);
-    }
+  if (startIdx === -1) {
+    throw new ValidationError(`No valid JSON structure found in AI response (received: "${cleaned.slice(0, 100)}...")`);
+  }
+
+  const endChar = isObject ? '}' : ']';
+  const lastIdx = cleaned.lastIndexOf(endChar);
+  if (lastIdx > startIdx) {
+    cleaned = cleaned.substring(startIdx, lastIdx + 1);
   }
 
   // 3. JSON Parse

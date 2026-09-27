@@ -3,6 +3,7 @@ import { Ingredient, MealType, PreferenceType, Recipe, ShoppingItem, UserPrefere
 import { defaultPreferences } from '../data/mockData';
 import { shoppingService } from '../services/shoppingService';
 import { recipeService } from '../services/recipeService';
+import { getIngredientImage } from '../utils/imageHelper';
 
 interface AppContextType {
   ingredients: Ingredient[];
@@ -83,7 +84,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       name,
       quantity,
       unit,
-      image: 'https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=300&q=80',
+      image: getIngredientImage(name),
     };
     setIngredients((prev) => [...prev, newItem]);
   };
@@ -140,7 +141,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       name,
       quantity,
       unit,
-      image: 'https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=300&q=80',
+      image: getIngredientImage(name),
       isPurchased: false,
       recipeName: selectedRecipe.title,
     };

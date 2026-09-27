@@ -36,8 +36,9 @@ export const ScanningScreen: React.FC = () => {
   const route       = useRoute<ScanningScreenRouteProp>();
   const { setDetectedIngredients } = useApp();
 
-  // imageUri comes from HomeScreen after camera/gallery pick
+  // imageUri and base64 come from HomeScreen after camera/gallery pick
   const imageUri = route.params?.imageUri;
+  const base64 = route.params?.base64;
 
   const [steps, setSteps] = useState<ScanningStep[]>(INITIAL_STEPS);
 
@@ -67,6 +68,7 @@ export const ScanningScreen: React.FC = () => {
           { text: 'OK', onPress: () => navigation.replace('Home') },
         ]);
       },
+      base64,
     );
 
     return () => {
