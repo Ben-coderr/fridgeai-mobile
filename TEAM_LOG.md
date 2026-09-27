@@ -4,3 +4,5 @@ Auto-updated by `scripts/git-work.sh`. Don't edit by hand — just run the scrip
 
 | Time | Author | Branch | Files changed | Message |
 |---|---|---|---|---|
+| 2026-09-27 14:58 | Zakaria | feature/ai-scan-and-pdf-export | 17 | Add |
+| 2026-09-27 15:04 | Zakaria | feature/ai-scan-and-pdf-export | 1 | Update: scripts/git-work.ps1 |

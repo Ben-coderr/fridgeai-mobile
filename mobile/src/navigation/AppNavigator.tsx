@@ -9,6 +9,7 @@ import { RecipeDetailScreen } from '../screens/RecipeDetailScreen';
 import { CookingInstructionsScreen } from '../screens/CookingInstructionsScreen';
 import { ShoppingListScreen } from '../screens/ShoppingListScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
+import { PdfExportScreen } from '../screens/PdfExportScreen';
 
 export type RootStackParamList = {
   Home: undefined;
@@ -19,6 +20,7 @@ export type RootStackParamList = {
   RecipeDetail: { recipeId?: string } | undefined;
   CookingInstructions: { recipeId?: string } | undefined;
   ShoppingList: { recipeId?: string } | undefined;
+  PdfExport: undefined;
   Settings: undefined;
 };
 
@@ -49,6 +51,11 @@ export const AppNavigator: React.FC = () => {
         component={CookingInstructionsScreen}
       />
       <Stack.Screen name="ShoppingList" component={ShoppingListScreen} />
+      <Stack.Screen
+        name="PdfExport"
+        component={PdfExportScreen}
+        options={{ animation: 'slide_from_bottom' }}
+      />
       <Stack.Screen
         name="Settings"
         component={SettingsScreen}

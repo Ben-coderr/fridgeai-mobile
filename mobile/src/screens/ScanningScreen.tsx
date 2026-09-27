@@ -11,73 +11,81 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { scanService } from '../services/scanService';
-import { scanningStepsData, foodImages } from '../data/mockData';
+import { foodImages } from '../data/mockData';
 import { ScanningStep } from '../types';
+import { useApp } from '../context/AppContext';
 import { colors, spacing, typography, shadows } from '../theme';
 
-type ScanningScreenNavigationProp = NativeStackNavigationProp<
-  RootStackParamList,
-  'Scanning'
->;
+type ScanningScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Scanning'>;
+type ScanningScreenRouteProp = RouteProp<RootStackParamList, 'Scanning'>;
+
+const INITIAL_STEPS: ScanningStep[] = [
+  { id: 1, title: 'Image captured',        subtitle: 'Photo successfully uploaded',              status: 'completed' },
+  { id: 2, title: 'Detecting ingredients',  subtitle: 'Finding food items in the image',          status: 'active' },
+  { id: 3, title: 'Identifying food items', subtitle: 'Using AI vision to recognize ingredients', status: 'pending' },
+  { id: 4, title: 'Organizing ingredients', subtitle: 'Preparing your results',                   status: 'pending' },
+];
 
 export const ScanningScreen: React.FC = () => {
-  const navigation = useNavigation<ScanningScreenNavigationProp>();
-  const [steps, setSteps] = useState<ScanningStep[]>(scanningStepsData);
+  const navigation  = useNavigation<ScanningScreenNavigationProp>();
+  const route       = useRoute<ScanningScreenRouteProp>();
+  const { setDetectedIngredients } = useApp();
+
+  // imageUri comes from HomeScreen after camera/gallery pick
+  const imageUri = route.params?.imageUri;
+
+  const [steps, setSteps] = useState<ScanningStep[]>(INITIAL_STEPS);
 
   // Scan line animation
   const [scanLineAnim] = useState(() => new Animated.Value(0));
 
   useEffect(() => {
     // Loop the laser scan animation
-    Animated.loop(
+    const anim = Animated.loop(
       Animated.sequence([
-        Animated.timing(scanLineAnim, {
-          toValue: 1,
-          duration: 1800,
-          useNativeDriver: true,
-        }),
-        Animated.timing(scanLineAnim, {
-          toValue: 0,
-          duration: 1800,
-          useNativeDriver: true,
-        }),
+        Animated.timing(scanLineAnim, { toValue: 1, duration: 1800, useNativeDriver: true }),
+        Animated.timing(scanLineAnim, { toValue: 0, duration: 1800, useNativeDriver: true }),
       ])
-    ).start();
+    );
+    anim.start();
 
-    // Start simulated scanning service
-    const cancelScan = scanService.simulateScanning(
-      (updatedSteps) => {
-        setSteps(updatedSteps);
-      },
-      () => {
+    // Kick off real or mock analysis
+    const cancel = scanService.startScan(
+      imageUri,
+      (updatedSteps) => setSteps(updatedSteps),
+      (ingredients) => {
+        setDetectedIngredients(ingredients);
         navigation.replace('Ingredients');
       }
     );
 
     return () => {
-      cancelScan();
+      anim.stop();
+      cancel();
     };
-  }, [navigation, scanLineAnim]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const translateY = scanLineAnim.interpolate({
     inputRange: [0, 1],
     outputRange: [10, 220],
   });
 
+  // Background: real captured photo if available, otherwise stock fridge image
+  const backgroundSource = imageUri
+    ? { uri: imageUri }
+    : { uri: foodImages.fridgeInterior };
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
 
-      {/* Full-screen fridge image */}
-      <Image
-        source={{ uri: foodImages.fridgeInterior }}
-        style={styles.backgroundImage}
-        resizeMode="cover"
-      />
+      {/* Full-screen background image (real photo or stock fridge) */}
+      <Image source={backgroundSource} style={styles.backgroundImage} resizeMode="cover" />
 
       {/* Dark overlay with green tint */}
       <View style={styles.darkOverlay} />
@@ -103,14 +111,7 @@ export const ScanningScreen: React.FC = () => {
           <View style={[styles.corner, styles.cornerBR]} />
 
           {/* Animated Scanning Laser Line */}
-          <Animated.View
-            style={[
-              styles.scanLine,
-              {
-                transform: [{ translateY }],
-              },
-            ]}
-          />
+          <Animated.View style={[styles.scanLine, { transform: [{ translateY }] }]} />
 
           {/* AI Tag */}
           <View style={styles.aiScanningTag}>
@@ -133,8 +134,8 @@ export const ScanningScreen: React.FC = () => {
         <View style={styles.stepsContainer}>
           {steps.map((step, index) => {
             const isCompleted = step.status === 'completed';
-            const isActive = step.status === 'active';
-            const isLast = index === steps.length - 1;
+            const isActive    = step.status === 'active';
+            const isLast      = index === steps.length - 1;
 
             return (
               <View key={step.id} style={styles.stepRow}>
@@ -244,34 +245,10 @@ const styles = StyleSheet.create({
     height: 24,
     borderColor: '#22C55E',
   },
-  cornerTL: {
-    top: 0,
-    left: 0,
-    borderTopWidth: 3.5,
-    borderLeftWidth: 3.5,
-    borderTopLeftRadius: 12,
-  },
-  cornerTR: {
-    top: 0,
-    right: 0,
-    borderTopWidth: 3.5,
-    borderRightWidth: 3.5,
-    borderTopRightRadius: 12,
-  },
-  cornerBL: {
-    bottom: 0,
-    left: 0,
-    borderBottomWidth: 3.5,
-    borderLeftWidth: 3.5,
-    borderBottomLeftRadius: 12,
-  },
-  cornerBR: {
-    bottom: 0,
-    right: 0,
-    borderBottomWidth: 3.5,
-    borderRightWidth: 3.5,
-    borderBottomRightRadius: 12,
-  },
+  cornerTL: { top: 0, left: 0,  borderTopWidth: 3.5, borderLeftWidth: 3.5,  borderTopLeftRadius: 12 },
+  cornerTR: { top: 0, right: 0, borderTopWidth: 3.5, borderRightWidth: 3.5, borderTopRightRadius: 12 },
+  cornerBL: { bottom: 0, left: 0,  borderBottomWidth: 3.5, borderLeftWidth: 3.5,  borderBottomLeftRadius: 12 },
+  cornerBR: { bottom: 0, right: 0, borderBottomWidth: 3.5, borderRightWidth: 3.5, borderBottomRightRadius: 12 },
   scanLine: {
     width: '100%',
     height: 2.5,
