@@ -1,7 +1,9 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Ingredient, MealType, PreferenceType, Recipe, ShoppingItem, UserPreferences } from '../types';
-import { defaultPreferences, initialDetectedIngredients, primaryRecipes, alternateRecipes } from '../data/mockData';
+import { defaultPreferences } from '../data/mockData';
 import { shoppingService } from '../services/shoppingService';
+import { recipeService } from '../services/recipeService';
+import { getIngredientImage } from '../utils/imageHelper';
 
 interface AppContextType {
   ingredients: Ingredient[];
@@ -17,9 +19,10 @@ interface AppContextType {
   setPreference: (pref: PreferenceType) => void;
 
   recipes: Recipe[];
+  setRecipes: (recipes: Recipe[]) => void;
   selectedRecipe: Recipe;
   setSelectedRecipe: (recipe: Recipe) => void;
-  generateDifferentRecipes: () => void;
+  generateDifferentRecipes: () => Promise<void>;
   favorites: Record<string, boolean>;
   toggleFavorite: (recipeId: string) => void;
 
@@ -34,21 +37,26 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
+const emptyRecipe: Recipe = {
+  id: '', name: '', title: '', description: '', image: '', cookingTime: 0,
+  prepTime: 0, servings: 1, difficulty: '', availableIngredients: [],
+  missingIngredients: [], instructions: [],
+};
+
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [ingredients, setIngredients] = useState<Ingredient[]>(initialDetectedIngredients);
+  const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [preferences, setPreferencesState] = useState<UserPreferences>(defaultPreferences);
-  const [recipes, setRecipes] = useState<Recipe[]>(primaryRecipes);
-  const [, setIsAlternate] = useState<boolean>(false);
-  const [selectedRecipe, setSelectedRecipe] = useState<Recipe>(primaryRecipes[0]);
+  const [recipes, setRecipes] = useState<Recipe[]>([]);
+  const [selectedRecipe, setSelectedRecipe] = useState<Recipe>(emptyRecipe);
   const [favorites, setFavorites] = useState<Record<string, boolean>>({});
   const [shoppingList, setShoppingList] = useState<ShoppingItem[]>([]);
 
   // Initialize shopping list on mount or selected recipe change
   useEffect(() => {
-    shoppingService.getShoppingListForRecipe(selectedRecipe.id).then((items) => {
+    shoppingService.getShoppingListForRecipe(selectedRecipe).then((items) => {
       setShoppingList(items);
     });
-  }, [selectedRecipe.id]);
+  }, [selectedRecipe]);
 
   const setDetectedIngredients = (items: Ingredient[]) => {
     setIngredients(items);
@@ -76,13 +84,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       name,
       quantity,
       unit,
-      image: 'https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=300&q=80',
+      image: getIngredientImage(name),
     };
     setIngredients((prev) => [...prev, newItem]);
   };
 
   const resetIngredients = () => {
-    setIngredients(initialDetectedIngredients);
+    setIngredients([]);
   };
 
   const setPeopleCount = (count: number) => {
@@ -97,14 +105,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setPreferencesState((prev) => ({ ...prev, preference: pref }));
   };
 
-  const generateDifferentRecipes = () => {
-    setIsAlternate((prev) => {
-      const next = !prev;
-      const newRecipeSet = next ? alternateRecipes : primaryRecipes;
-      setRecipes(newRecipeSet);
-      setSelectedRecipe(newRecipeSet[0]);
-      return next;
-    });
+  const generateDifferentRecipes = async () => {
+    const generated = await recipeService.getRecipes(preferences, ingredients);
+    setRecipes(generated);
+    if (generated.length > 0) setSelectedRecipe(generated[0]);
   };
 
   const toggleFavorite = (recipeId: string) => {
@@ -137,7 +141,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       name,
       quantity,
       unit,
-      image: 'https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=300&q=80',
+      image: getIngredientImage(name),
       isPurchased: false,
       recipeName: selectedRecipe.title,
     };
@@ -149,11 +153,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const resetToHome = () => {
-    setIngredients(initialDetectedIngredients);
+    setIngredients([]);
     setPreferencesState(defaultPreferences);
-    setRecipes(primaryRecipes);
-    setIsAlternate(false);
-    setSelectedRecipe(primaryRecipes[0]);
+    setRecipes([]);
+    setSelectedRecipe(emptyRecipe);
   };
 
   return (
@@ -170,6 +173,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setMealType,
         setPreference,
         recipes,
+        setRecipes,
         selectedRecipe,
         setSelectedRecipe,
         generateDifferentRecipes,

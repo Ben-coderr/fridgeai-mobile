@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   StatusBar,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,6 +16,8 @@ import { RootStackParamList } from '../navigation/AppNavigator';
 import { useApp } from '../context/AppContext';
 import { Header } from '../components/common/Header';
 import { PrimaryButton } from '../components/common/PrimaryButton';
+import { recipeService } from '../services/recipeService';
+import { RecipeStep } from '../types';
 import { colors, spacing, typography, shadows } from '../theme';
 
 type CookingInstructionsRouteProp = RouteProp<
@@ -35,6 +38,17 @@ export const CookingInstructionsScreen: React.FC = () => {
   const currentRecipe = recipes.find((r) => r.id === recipeId) || selectedRecipe;
 
   const [completedSteps, setCompletedSteps] = useState<Record<number, boolean>>({});
+  const [instructions, setInstructions] = useState<RecipeStep[]>(currentRecipe.instructions || []);
+
+  useEffect(() => {
+    let active = true;
+    recipeService.getInstructions(currentRecipe).then((result) => {
+      if (active) setInstructions(result);
+    }).catch((error: unknown) => {
+      if (active) Alert.alert('Could not load instructions', error instanceof Error ? error.message : 'Check your backend connection and try again.');
+    });
+    return () => { active = false; };
+  }, [currentRecipe]);
 
   const toggleStep = (stepNumber: number) => {
     setCompletedSteps((prev) => ({
@@ -77,9 +91,9 @@ export const CookingInstructionsScreen: React.FC = () => {
 
         {/* Timeline Steps */}
         <View style={styles.timelineWrapper}>
-          {currentRecipe.instructions.map((stepItem, index) => {
+          {instructions.map((stepItem, index) => {
             const isCompleted = !!completedSteps[stepItem.step];
-            const isLast = index === currentRecipe.instructions.length - 1;
+            const isLast = index === instructions.length - 1;
 
             return (
               <TouchableOpacity
@@ -147,6 +161,9 @@ export const CookingInstructionsScreen: React.FC = () => {
               </TouchableOpacity>
             );
           })}
+          {instructions.length === 0 && (
+            <Text style={styles.recipeTitle}>Generating cooking instructions…</Text>
+          )}
         </View>
 
         {/* Bottom Actions */}

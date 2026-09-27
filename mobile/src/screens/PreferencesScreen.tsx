@@ -12,6 +12,8 @@ import { PreferenceChips } from '../components/preferences/PreferenceButton';
 import { PrimaryButton } from '../components/common/PrimaryButton';
 import { colors, spacing, typography, shadows } from '../theme';
 
+import { recipeService } from '../services/recipeService';
+
 type PreferencesScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
   'Preferences'
@@ -19,15 +21,23 @@ type PreferencesScreenNavigationProp = NativeStackNavigationProp<
 
 export const PreferencesScreen: React.FC = () => {
   const navigation = useNavigation<PreferencesScreenNavigationProp>();
-  const { preferences, setPeopleCount, setMealType, setPreference } = useApp();
+  const { preferences, ingredients, setRecipes, setSelectedRecipe, setPeopleCount, setMealType, setPreference } = useApp();
   const [loading, setLoading] = useState<boolean>(false);
 
-  const handleGenerate = () => {
+  const handleGenerate = async () => {
     setLoading(true);
-    setTimeout(() => {
+    try {
+      const generated = await recipeService.getRecipes(preferences, ingredients);
+      if (generated && generated.length > 0) {
+        setRecipes(generated);
+        setSelectedRecipe(generated[0]);
+      }
+    } catch (err) {
+      console.warn('[PreferencesScreen] Error generating recipes:', err);
+    } finally {
       setLoading(false);
       navigation.navigate('Recipes');
-    }, 500);
+    }
   };
 
   return (

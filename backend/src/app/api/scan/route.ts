@@ -1,108 +1,181 @@
 import { NextResponse } from 'next/server';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import sharp from 'sharp';
+import { dispatchVision } from '@/lib/ai/dispatcher';
+import { getIngredientImageUrl } from '@/lib/ai/imageResolver';
 
-// ─────────────────────────────────────────────
-// Mock fallback used when MOCK_AI=true or no key
-// ─────────────────────────────────────────────
-const MOCK_INGREDIENTS = [
-  { name: 'Eggs',          quantity: 6, unit: 'pcs' },
-  { name: 'Tomatoes',      quantity: 3, unit: 'pcs' },
-  { name: 'Chicken breast',quantity: 2, unit: 'pcs' },
-  { name: 'Milk',          quantity: 1, unit: 'bottle' },
-  { name: 'Cheese',        quantity: 1, unit: 'block' },
-  { name: 'Broccoli',      quantity: 1, unit: 'head' },
-  { name: 'Carrots',       quantity: 3, unit: 'pcs' },
-  { name: 'Bell pepper',   quantity: 1, unit: 'pc' },
-];
+const MAX_FILE_SIZE_BYTES = 15 * 1024 * 1024; // 15MB
 
-// ─────────────────────────────────────────────
-// Gemini Vision prompt
-// ─────────────────────────────────────────────
-const SYSTEM_PROMPT = `You are a fridge ingredient detector.
-The user sends a photo of the inside of their fridge or food items.
-Return a JSON array of ingredients you can see. Each item must have:
-  - "name": string  (common English name, e.g. "Eggs", "Milk", "Tomatoes")
-  - "quantity": number (best estimate, e.g. 6)
-  - "unit": string  (e.g. "pcs", "g", "ml", "bottle", "block", "head", "pc", "bunch")
+const ALLOWED_MIME_TYPES = new Set([
+  'image/jpeg',
+  'image/jpg',
+  'image/pjpeg',
+  'image/png',
+  'image/x-png',
+  'image/webp',
+  'image/heic',
+  'image/heif',
+  'image/heic-sequence',
+  'image/heif-sequence',
+  'image/gif',
+  'image/bmp',
+  'image/tiff',
+  'application/octet-stream',
+]);
 
-Respond with ONLY the raw JSON array. No markdown, no explanation.
-Example: [{"name":"Eggs","quantity":6,"unit":"pcs"},{"name":"Milk","quantity":1,"unit":"bottle"}]`;
-
-// ─────────────────────────────────────────────
-// Helpers
-// ─────────────────────────────────────────────
-function fileToBase64Part(buffer: Buffer, mimeType: string) {
-  return {
-    inlineData: {
-      data: buffer.toString('base64'),
-      mimeType,
-    },
-  };
-}
-
-interface DetectedIngredient {
-  name: string;
-  quantity: number;
-  unit: string;
-}
-
-function parseGeminiResponse(text: string): DetectedIngredient[] {
-  // Strip potential markdown code fences
-  const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-  const parsed = JSON.parse(cleaned) as unknown;
-
-  if (!Array.isArray(parsed)) throw new Error('Expected an array');
-
-  return (parsed as Record<string, unknown>[]).map((item) => ({
-    name:     typeof item.name     === 'string' ? item.name     : 'Unknown',
-    quantity: typeof item.quantity === 'number' ? item.quantity : 1,
-    unit:     typeof item.unit     === 'string' ? item.unit     : 'pcs',
-  }));
-}
-
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
 // POST /api/scan
-// Body: multipart/form-data with field "image" (File)
-// ─────────────────────────────────────────────
+// Supports both multipart/form-data and application/json (base64)
+// ─────────────────────────────────────────────────────────────
 export async function POST(request: Request) {
   try {
-    const formData = await request.formData();
-    const image = formData.get('image');
+    const contentType = (request.headers.get('content-type') || '').toLowerCase();
 
-    if (!(image instanceof File)) {
+    let rawBuffer: Buffer | null = null;
+    let mimeType = 'image/jpeg';
+
+    if (contentType.includes('application/json')) {
+      // JSON body with base64 payload
+      let body: { image?: string; base64?: string; mimeType?: string };
+      try {
+        body = await request.json();
+      } catch {
+        return NextResponse.json(
+          { error: 'Invalid JSON request body.' },
+          { status: 400 }
+        );
+      }
+
+      const rawImage = body.image || body.base64;
+      if (!rawImage || typeof rawImage !== 'string') {
+        return NextResponse.json(
+          { error: 'An image base64 string is required (field name: "image" or "base64").' },
+          { status: 400 }
+        );
+      }
+
+      const match = rawImage.match(/^data:([^;]+);base64,(.+)$/);
+      if (match) {
+        mimeType = match[1].toLowerCase();
+        rawBuffer = Buffer.from(match[2], 'base64');
+      } else {
+        if (body.mimeType) {
+          mimeType = body.mimeType.toLowerCase();
+        }
+        rawBuffer = Buffer.from(rawImage, 'base64');
+      }
+    } else {
+      // Multipart form data
+      let formData: FormData;
+      try {
+        formData = await request.formData();
+      } catch (formError) {
+        console.error('[scan] Failed to parse multipart formData:', formError);
+        return NextResponse.json(
+          { error: 'Failed to read uploaded form data. Please ensure the image is properly sent.' },
+          { status: 400 }
+        );
+      }
+
+      const image = formData.get('image');
+      if (!image) {
+        return NextResponse.json(
+          { error: 'An image file is required (field name: "image").' },
+          { status: 400 }
+        );
+      }
+
+      if (typeof image === 'string') {
+        // Base64 string in formData
+        const match = image.match(/^data:([^;]+);base64,(.+)$/);
+        if (match) {
+          mimeType = match[1].toLowerCase();
+          rawBuffer = Buffer.from(match[2], 'base64');
+        } else {
+          rawBuffer = Buffer.from(image, 'base64');
+        }
+      } else if (typeof (image as Blob).arrayBuffer === 'function') {
+        const blob = image as Blob;
+        mimeType = (blob.type || 'image/jpeg').toLowerCase();
+        rawBuffer = Buffer.from(await blob.arrayBuffer());
+      } else {
+        return NextResponse.json(
+          { error: 'Unsupported image upload format.' },
+          { status: 400 }
+        );
+      }
+    }
+
+    if (!rawBuffer || rawBuffer.length === 0) {
       return NextResponse.json(
-        { error: 'An image file is required (field name: "image").' },
+        { error: 'The uploaded image file is empty.' },
         { status: 400 }
       );
     }
 
-    // ── Use mock if flag is set or no API key ───────────────────────────────
-    const useMock = process.env.MOCK_AI === 'true' || !process.env.GEMINI_API_KEY;
-
-    if (useMock) {
-      // Simulate a small delay so the UI animation feels real
-      await new Promise((r) => setTimeout(r, 800));
-      return NextResponse.json({ ingredients: MOCK_INGREDIENTS, source: 'mock' });
+    // 1. File size validation
+    if (rawBuffer.length > MAX_FILE_SIZE_BYTES) {
+      return NextResponse.json(
+        { error: `File size exceeds the 15MB limit (received ${(rawBuffer.length / (1024 * 1024)).toFixed(1)}MB).` },
+        { status: 400 }
+      );
     }
 
-    // ── Real Gemini Vision call ─────────────────────────────────────────────
-    const genAI  = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
-    const model  = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    // 2. MIME type validation with image/* and magic bytes flexibility
+    const isKnownMime =
+      ALLOWED_MIME_TYPES.has(mimeType) ||
+      mimeType.startsWith('image/');
 
-    const buffer   = Buffer.from(await image.arrayBuffer());
-    const mimeType = (image.type || 'image/jpeg') as 'image/jpeg' | 'image/png' | 'image/webp';
-    const imagePart = fileToBase64Part(buffer, mimeType);
+    // 3. Process image with Sharp (auto-converts HEIC/HEIF, PNG, WebP, GIF, JPEG -> optimized JPEG)
+    let processedBuffer: Buffer;
+    let targetMimeType = 'image/jpeg';
 
-    const result = await model.generateContent([SYSTEM_PROMPT, imagePart]);
-    const text   = result.response.text();
-    const ingredients = parseGeminiResponse(text);
+    try {
+      // Validate magic bytes with sharp metadata
+      const meta = await sharp(rawBuffer).metadata();
+      if (!meta.format && !isKnownMime) {
+        return NextResponse.json(
+          { error: `Unsupported image format (${mimeType || 'unknown'}). Please upload a valid photo.` },
+          { status: 400 }
+        );
+      }
 
-    return NextResponse.json({ ingredients, source: 'gemini' });
+      processedBuffer = await sharp(rawBuffer)
+        .resize(1024, 1024, { fit: 'inside', withoutEnlargement: true })
+        .jpeg({ quality: 75 })
+        .toBuffer();
+      targetMimeType = 'image/jpeg';
+    } catch (sharpError) {
+      console.warn('[scan] Sharp processing failed, evaluating fallback:', (sharpError as Error).message);
 
+      if (!isKnownMime) {
+        return NextResponse.json(
+          { error: 'Invalid or corrupted image format. Please select another photo.' },
+          { status: 400 }
+        );
+      }
+
+      processedBuffer = rawBuffer;
+      targetMimeType = mimeType.startsWith('image/') ? mimeType : 'image/jpeg';
+    }
+
+    // 4. Dispatch through AI Vision Pipeline (Gemini -> OpenRouter -> Mock)
+    const result = await dispatchVision(processedBuffer, targetMimeType);
+
+    const enrichedIngredients = result.ingredients.map((item) => ({
+      ...item,
+      image: getIngredientImageUrl(item.name),
+    }));
+
+    return NextResponse.json({
+      source: result.source,
+      ingredients: enrichedIngredients,
+    });
   } catch (err) {
-    console.error('[scan] Error:', err);
+    console.error('[scan] Unexpected route error:', err);
 
-    // Graceful fallback: return mock so the app never crashes
-    return NextResponse.json({ ingredients: MOCK_INGREDIENTS, source: 'fallback' });
+    return NextResponse.json(
+      { error: (err as Error)?.message || 'Image analysis failed.' },
+      { status: 502 }
+    );
   }
 }

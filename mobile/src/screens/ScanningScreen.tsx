@@ -8,6 +8,7 @@ import {
   Animated,
   ActivityIndicator,
   StatusBar,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -35,8 +36,9 @@ export const ScanningScreen: React.FC = () => {
   const route       = useRoute<ScanningScreenRouteProp>();
   const { setDetectedIngredients } = useApp();
 
-  // imageUri comes from HomeScreen after camera/gallery pick
+  // imageUri and base64 come from HomeScreen after camera/gallery pick
   const imageUri = route.params?.imageUri;
+  const base64 = route.params?.base64;
 
   const [steps, setSteps] = useState<ScanningStep[]>(INITIAL_STEPS);
 
@@ -60,7 +62,13 @@ export const ScanningScreen: React.FC = () => {
       (ingredients) => {
         setDetectedIngredients(ingredients);
         navigation.replace('Ingredients');
-      }
+      },
+      (error) => {
+        Alert.alert('Scan failed', error.message, [
+          { text: 'OK', onPress: () => navigation.replace('Home') },
+        ]);
+      },
+      base64,
     );
 
     return () => {

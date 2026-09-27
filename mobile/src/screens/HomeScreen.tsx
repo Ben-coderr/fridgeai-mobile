@@ -30,27 +30,26 @@ export const HomeScreen: React.FC = () => {
       if (status !== 'granted') {
         Alert.alert(
           'Camera Access',
-          'Camera permission is needed to take a photo of your fridge. Would you like to use the demo fridge image?',
-          [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Use Demo', onPress: () => navigation.navigate('Scanning', {}) },
-          ]
+          'Camera permission is required to take a fridge photo. Enable it in your device settings, or use Upload a Photo.'
         );
         return;
       }
 
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ['images'],
-        allowsEditing: true,
+        allowsEditing: false,
         quality: 0.85,
+        base64: true,
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        navigation.navigate('Scanning', { imageUri: result.assets[0].uri });
+        navigation.navigate('Scanning', {
+          imageUri: result.assets[0].uri,
+          base64: result.assets[0].base64 ?? undefined,
+        });
       }
-    } catch {
-      // Graceful fallback for web/emulators without native camera
-      navigation.navigate('Scanning', {});
+    } catch (error) {
+      Alert.alert('Camera unavailable', error instanceof Error ? error.message : 'Unable to open the camera.');
     }
   };
 
@@ -61,25 +60,26 @@ export const HomeScreen: React.FC = () => {
         Alert.alert(
           'Photo Library Access',
           'Photo library access is needed to select a fridge picture.',
-          [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Use Demo', onPress: () => navigation.navigate('Scanning', {}) },
-          ]
+          [{ text: 'OK' }]
         );
         return;
       }
 
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
-        allowsEditing: true,
+        allowsEditing: false,
         quality: 0.85,
+        base64: true,
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        navigation.navigate('Scanning', { imageUri: result.assets[0].uri });
+        navigation.navigate('Scanning', {
+          imageUri: result.assets[0].uri,
+          base64: result.assets[0].base64 ?? undefined,
+        });
       }
-    } catch {
-      navigation.navigate('Scanning', {});
+    } catch (error) {
+      Alert.alert('Photo library unavailable', error instanceof Error ? error.message : 'Unable to open your photos.');
     }
   };
 

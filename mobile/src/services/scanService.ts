@@ -1,12 +1,12 @@
 import { Ingredient, ScanningStep } from '../types';
 import { API_BASE_URL, USE_BACKEND } from '../config/api';
-import { foodImages, initialDetectedIngredients } from '../data/mockData';
+import { foodImages } from '../data/mockData';
+import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
+import { getIngredientImage } from '../utils/imageHelper';
 
 // ─────────────────────────────────────────────────────────────
 // Image URL lookup by ingredient name (keyword matching)
 // ─────────────────────────────────────────────────────────────
-const FALLBACK_IMAGE =
-  'https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=300&q=80';
 
 const NAME_TO_IMAGE: Record<string, string> = {
   egg:           foodImages.eggs,
@@ -40,7 +40,8 @@ function imageForIngredient(name: string): string {
   for (const [k, url] of Object.entries(NAME_TO_IMAGE)) {
     if (key.includes(k) || k.includes(key)) return url;
   }
-  return FALLBACK_IMAGE;
+  // Universal fallback: TheMealDB transparent PNG CDN
+  return getIngredientImage(name);
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -50,21 +51,52 @@ interface RawDetected {
   name: string;
   quantity: number;
   unit: string;
+  image?: string;
+}
+
+/**
+ * Cameras and photo libraries can return HEIC, HEIF, WEBP, or content URIs.
+ * Convert every source to a JPEG in the local cache before creating FormData,
+ * so iOS and Android upload a format the backend and vision providers accept.
+ */
+async function createScanJpeg(imageUri: string): Promise<string> {
+  try {
+    const result = await manipulateAsync(imageUri, [{ resize: { width: 1600 } }], {
+      compress: 0.82,
+      format: SaveFormat.JPEG,
+    });
+    return result.uri;
+  } catch {
+    throw new Error('This photo could not be converted to JPEG. Choose a standard photo and try again.');
+  }
 }
 
 // ─────────────────────────────────────────────────────────────
 // Upload image to /api/scan and get back detected ingredients
 // ─────────────────────────────────────────────────────────────
-async function analyzeImageWithBackend(imageUri: string): Promise<Ingredient[]> {
+async function analyzeImageWithBackend(imageUri: string, _capturedBase64?: string): Promise<Ingredient[]> {
+  const jpegUri = await createScanJpeg(imageUri);
+
   // Build a multipart FormData payload
   const formData = new FormData();
 
-  // On React Native, we can append a file-like object using the URI
-  formData.append('image', {
-    uri: imageUri,
-    name: 'fridge.jpg',
-    type: 'image/jpeg',
-  } as unknown as Blob);
+  if (typeof window !== 'undefined') {
+    // Browsers require a Blob or File. The React Native URI object is not a
+    // valid web FormData file and causes the backend to receive no image.
+    const imageResponse = await fetch(jpegUri);
+    if (!imageResponse.ok) {
+      throw new Error('Could not read the selected image before upload.');
+    }
+    const imageBlob = await imageResponse.blob();
+    formData.append('image', imageBlob, 'fridge.jpg');
+  } else {
+    // React Native accepts this URI-backed file representation.
+    formData.append('image', {
+      uri: jpegUri,
+      name: 'fridge.jpg',
+      type: 'image/jpeg',
+    } as unknown as Blob);
+  }
 
   const response = await fetch(`${API_BASE_URL}/api/scan`, {
     method: 'POST',
@@ -73,7 +105,8 @@ async function analyzeImageWithBackend(imageUri: string): Promise<Ingredient[]> 
   });
 
   if (!response.ok) {
-    throw new Error(`Backend returned ${response.status}`);
+    const errorBody = await response.json().catch(() => null) as { error?: string } | null;
+    throw new Error(errorBody?.error || `Backend returned ${response.status}`);
   }
 
   const data = (await response.json()) as { ingredients: RawDetected[]; source: string };
@@ -83,7 +116,7 @@ async function analyzeImageWithBackend(imageUri: string): Promise<Ingredient[]> 
     name: item.name,
     quantity: item.quantity ?? 1,
     unit: item.unit ?? 'pcs',
-    image: imageForIngredient(item.name),
+    image: item.image || imageForIngredient(item.name),
   }));
 }
 
@@ -94,15 +127,18 @@ export const scanService = {
   /**
    * Drives both the visual scanning animation and the real/mock AI call.
    *
-   * @param imageUri   – URI of the captured/selected photo. If undefined, falls back to mock.
+ * @param imageUri   – URI of the captured/selected photo.
    * @param onStepUpdate – callback fired as each scanning step completes
    * @param onComplete   – called with detected ingredients when everything is done
+   * @param onError callback when the real backend cannot analyze the image
    * @returns cleanup function to cancel pending timers
    */
   startScan: (
     imageUri: string | undefined,
     onStepUpdate: (steps: ScanningStep[]) => void,
-    onComplete: (ingredients: Ingredient[]) => void
+    onComplete: (ingredients: Ingredient[]) => void,
+    onError: (error: Error) => void,
+    capturedBase64?: string
   ): (() => void) => {
     let cancelled = false;
 
@@ -113,7 +149,7 @@ export const scanService = {
       s3: ScanningStep['status'],
       s4: ScanningStep['status']
     ): ScanningStep[] => [
-      { id: 1, title: 'Image captured',       subtitle: 'Photo successfully uploaded',             status: s1 },
+      { id: 1, title: 'Image captured',       subtitle: 'Photo ready for upload',                  status: s1 },
       { id: 2, title: 'Detecting ingredients', subtitle: 'Finding food items in the image',         status: s2 },
       { id: 3, title: 'Identifying food items',subtitle: 'Using AI vision to recognize ingredients',status: s3 },
       { id: 4, title: 'Organizing ingredients',subtitle: 'Preparing your results',                  status: s4 },
@@ -122,35 +158,30 @@ export const scanService = {
     // Emit initial state immediately
     onStepUpdate(makeSteps('completed', 'active', 'pending', 'pending'));
 
-    // ── Kick off real (or mock) AI analysis in parallel ───────────────────
-    const analysisPromise: Promise<Ingredient[]> =
-      imageUri && USE_BACKEND
-        ? analyzeImageWithBackend(imageUri).catch(() => [...initialDetectedIngredients])
-        : Promise.resolve([...initialDetectedIngredients]);
-
-    // ── Visual timeline ───────────────────────────────────────────────────
-    // We want the animation to play for at least ~4 s regardless of how fast
-    // the network responds, so we race a minimum delay against the real call.
-    const MIN_ANIM_MS = 4500;
+    if (!imageUri) {
+      onError(new Error('Take a photo or choose an image before starting a scan.'));
+      return () => { cancelled = true; };
+    }
+    if (!USE_BACKEND) {
+      onError(new Error('AI scanning is disabled. Set EXPO_PUBLIC_USE_BACKEND=true in the mobile environment.'));
+      return () => { cancelled = true; };
+    }
 
     const t1 = setTimeout(() => {
       if (!cancelled) onStepUpdate(makeSteps('completed', 'completed', 'active', 'pending'));
-    }, 1500);
-
+    }, 700);
     const t2 = setTimeout(() => {
       if (!cancelled) onStepUpdate(makeSteps('completed', 'completed', 'completed', 'active'));
-    }, 3000);
+    }, 1400);
 
-    // Once BOTH the minimum animation time AND the API call are done, finish.
-    const minDelay = new Promise<void>((r) => setTimeout(r, MIN_ANIM_MS));
-
-    Promise.all([analysisPromise, minDelay]).then(([ingredients]) => {
+    analyzeImageWithBackend(imageUri, capturedBase64).then((ingredients) => {
       if (cancelled) return;
       onStepUpdate(makeSteps('completed', 'completed', 'completed', 'completed'));
-      // Small pause so the user sees the last checkmark
       setTimeout(() => {
         if (!cancelled) onComplete(ingredients);
       }, 400);
+    }).catch((error: unknown) => {
+      if (!cancelled) onError(error instanceof Error ? error : new Error('Image analysis failed.'));
     });
 
     return () => {
@@ -165,6 +196,6 @@ export const scanService = {
     onStepUpdate: (steps: ScanningStep[]) => void,
     onComplete: () => void
   ): (() => void) => {
-    return scanService.startScan(undefined, onStepUpdate, () => onComplete());
+    return scanService.startScan(undefined, onStepUpdate, () => onComplete(), () => {});
   },
 };

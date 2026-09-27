@@ -67,12 +67,11 @@ export const PdfExportScreen: React.FC = () => {
   const { recipes, shoppingList, ingredients } = useApp();
 
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [isGenerating, setIsGenerating] = useState(false);
   const [pdfUri, setPdfUri] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<'download' | 'share' | null>(null);
 
   const slideScrollRef = useRef<ScrollView>(null);
-  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const [pulseAnim] = useState(() => new Animated.Value(1));
 
   // Pulse animation for the PDF icon
   React.useEffect(() => {
@@ -91,24 +90,22 @@ export const PdfExportScreen: React.FC = () => {
   };
 
   // ── Generate PDF ──────────────────────────────────────────────────────────
-  const handleGenerate = async () => {
-    setIsGenerating(true);
+  const createPdf = async (): Promise<string | null> => {
     try {
       const result = await pdfService.generatePdf(recipes, shoppingList, ingredients);
       setPdfUri(result.uri);
+      return result.uri;
     } catch {
-      // noop — pdfUri stays null and buttons stay disabled
-    } finally {
-      setIsGenerating(false);
+      return null;
     }
   };
 
   // ── Download (save) ───────────────────────────────────────────────────────
   const handleDownload = async () => {
-    if (!pdfUri) { await handleGenerate(); return; }
     setActionLoading('download');
     try {
-      await pdfService.savePdf(pdfUri);
+      const uri = pdfUri || await createPdf();
+      if (uri) await pdfService.savePdf(uri);
     } finally {
       setActionLoading(null);
     }
@@ -116,10 +113,10 @@ export const PdfExportScreen: React.FC = () => {
 
   // ── Share ─────────────────────────────────────────────────────────────────
   const handleShare = async () => {
-    if (!pdfUri) { await handleGenerate(); return; }
     setActionLoading('share');
     try {
-      await pdfService.sharePdf(pdfUri);
+      const uri = pdfUri || await createPdf();
+      if (uri) await pdfService.sharePdf(uri);
     } finally {
       setActionLoading(null);
     }
@@ -163,7 +160,7 @@ export const PdfExportScreen: React.FC = () => {
             <View style={styles.includedIconCircle}>
               <Ionicons name="document-text" size={18} color={colors.primary} />
             </View>
-            <Text style={styles.includedTitle}>What's included in your PDF?</Text>
+            <Text style={styles.includedTitle}>What&apos;s included in your PDF?</Text>
           </View>
 
           <View style={styles.includedGrid}>
@@ -184,7 +181,7 @@ export const PdfExportScreen: React.FC = () => {
             <View>
               <Text style={styles.previewTitle}>Preview of your PDF</Text>
               <Text style={styles.previewSubtitle}>
-                Here's a sample of how your exported meal plan will look.
+                Here&apos;s a sample of how your exported meal plan will look.
               </Text>
             </View>
 
@@ -354,34 +351,12 @@ export const PdfExportScreen: React.FC = () => {
 
       {/* ── Bottom action bar ─────────────────────────────────────────────── */}
       <View style={styles.bottomBar}>
-        {!pdfUri ? (
-          /* Generate PDF button (full width) */
-          <TouchableOpacity
-            style={styles.generateBtn}
-            onPress={handleGenerate}
-            activeOpacity={0.88}
-            disabled={isGenerating}
-          >
-            {isGenerating ? (
-              <>
-                <ActivityIndicator color="#fff" size="small" />
-                <Text style={styles.generateBtnText}>Creating PDF…</Text>
-              </>
-            ) : (
-              <>
-                <Ionicons name="document-text-outline" size={20} color="#fff" />
-                <Text style={styles.generateBtnText}>Create PDF</Text>
-              </>
-            )}
-          </TouchableOpacity>
-        ) : (
-          /* Download + Share buttons (after PDF is ready) */
-          <View style={styles.actionsRow}>
+        <View style={styles.actionsRow}>
             <TouchableOpacity
               style={styles.exportBtn}
               onPress={handleDownload}
               activeOpacity={0.88}
-              disabled={actionLoading !== null}
+            disabled={actionLoading !== null}
             >
               <LinearGradient
                 colors={['#16a34a', '#22C55E']}
@@ -402,7 +377,7 @@ export const PdfExportScreen: React.FC = () => {
               style={styles.shareBtn}
               onPress={handleShare}
               activeOpacity={0.88}
-              disabled={actionLoading !== null}
+            disabled={actionLoading !== null}
             >
               {actionLoading === 'share' ? (
                 <ActivityIndicator color={colors.primary} size="small" />
@@ -411,8 +386,7 @@ export const PdfExportScreen: React.FC = () => {
               )}
               <Text style={styles.shareBtnText}>Share</Text>
             </TouchableOpacity>
-          </View>
-        )}
+        </View>
       </View>
     </SafeAreaView>
   );
