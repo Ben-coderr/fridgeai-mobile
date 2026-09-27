@@ -1,0 +1,418 @@
+import { Ingredient, Recipe, ScanningStep, UserPreferences } from '../types';
+
+export const foodImages = {
+  // Dishes
+  creamyChickenPasta: 'https://images.unsplash.com/photo-1621996346565-e3d5d6281691?auto=format&fit=crop&w=800&q=80',
+  spicyTomatoRice: 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?auto=format&fit=crop&w=800&q=80',
+  chickenVegetableBowl: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=800&q=80',
+  cheesyFrittata: 'https://images.unsplash.com/photo-1525351484163-7529414344d8?auto=format&fit=crop&w=800&q=80',
+  chickenStew: 'https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=800&q=80',
+  stirFry: 'https://images.unsplash.com/photo-1512058564366-18510be2db19?auto=format&fit=crop&w=800&q=80',
+
+  // Fridge Scene
+  fridgeInterior: 'https://images.unsplash.com/photo-1584269600464-37b1b58a9fe7?auto=format&fit=crop&w=1000&q=80',
+  groceryBag: 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=400&q=80',
+
+  // Ingredients (high quality clean food photography)
+  eggs: 'https://images.unsplash.com/photo-1582722872445-44dc5f7e3c8f?auto=format&fit=crop&w=300&q=80',
+  tomatoes: 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&w=300&q=80',
+  chickenBreast: 'https://images.unsplash.com/photo-1604503468506-a8da13d82791?auto=format&fit=crop&w=300&q=80',
+  milk: 'https://images.unsplash.com/photo-1550583724-b2692b85b150?auto=format&fit=crop&w=300&q=80',
+  cheese: 'https://images.unsplash.com/photo-1486297678162-eb2a19b0a32d?auto=format&fit=crop&w=300&q=80',
+  broccoli: 'https://images.unsplash.com/photo-1459411621453-7b03977f4bfc?auto=format&fit=crop&w=300&q=80',
+  carrots: 'https://images.unsplash.com/photo-1598170845058-32b9d6a5c317?auto=format&fit=crop&w=300&q=80',
+  bellPepper: 'https://images.unsplash.com/photo-1563565375-f3fdfdbefa83?auto=format&fit=crop&w=300&q=80',
+  pasta: 'https://images.unsplash.com/photo-1551462147-ff29053bfc14?auto=format&fit=crop&w=300&q=80',
+  garlic: 'https://images.unsplash.com/photo-1540148426945-6cf22a6b2383?auto=format&fit=crop&w=300&q=80',
+  onion: 'https://images.unsplash.com/photo-1618512496248-a07fe83aa8cb?auto=format&fit=crop&w=300&q=80',
+  oliveOil: 'https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?auto=format&fit=crop&w=300&q=80',
+  parmesan: 'https://images.unsplash.com/photo-1452195100486-9cc805987862?auto=format&fit=crop&w=300&q=80',
+  freshBasil: 'https://images.unsplash.com/photo-1608686207856-001b95cf60ca?auto=format&fit=crop&w=300&q=80',
+};
+
+export const initialDetectedIngredients: Ingredient[] = [
+  {
+    id: 'ing_1',
+    name: 'Eggs',
+    quantity: 6,
+    unit: 'pcs',
+    image: foodImages.eggs,
+  },
+  {
+    id: 'ing_2',
+    name: 'Tomatoes',
+    quantity: 3,
+    unit: 'pcs',
+    image: foodImages.tomatoes,
+  },
+  {
+    id: 'ing_3',
+    name: 'Chicken breast',
+    quantity: 2,
+    unit: 'pcs',
+    image: foodImages.chickenBreast,
+  },
+  {
+    id: 'ing_4',
+    name: 'Milk',
+    quantity: 1,
+    unit: 'bottle',
+    image: foodImages.milk,
+  },
+  {
+    id: 'ing_5',
+    name: 'Cheese',
+    quantity: 1,
+    unit: 'block',
+    image: foodImages.cheese,
+  },
+  {
+    id: 'ing_6',
+    name: 'Broccoli',
+    quantity: 1,
+    unit: 'head',
+    image: foodImages.broccoli,
+  },
+  {
+    id: 'ing_7',
+    name: 'Carrots',
+    quantity: 3,
+    unit: 'pcs',
+    image: foodImages.carrots,
+  },
+  {
+    id: 'ing_8',
+    name: 'Bell pepper',
+    quantity: 1,
+    unit: 'pc',
+    image: foodImages.bellPepper,
+  },
+];
+
+export const defaultPreferences: UserPreferences = {
+  peopleCount: 2,
+  mealType: 'Dinner',
+  preference: 'Quick',
+};
+
+export const scanningStepsData: ScanningStep[] = [
+  {
+    id: 1,
+    title: 'Image captured',
+    subtitle: 'Photo successfully uploaded',
+    status: 'completed',
+  },
+  {
+    id: 2,
+    title: 'Detecting ingredients',
+    subtitle: 'Finding food items in the image',
+    status: 'completed',
+  },
+  {
+    id: 3,
+    title: 'Identifying food items',
+    subtitle: 'Using AI vision to recognize ingredients',
+    status: 'active',
+  },
+  {
+    id: 4,
+    title: 'Organizing ingredients',
+    subtitle: 'Preparing your results',
+    status: 'pending',
+  },
+];
+
+export const primaryRecipes: Recipe[] = [
+  {
+    id: 'rec_1',
+    name: 'Creamy Chicken Pasta',
+    title: 'Creamy Chicken Pasta',
+    description: 'A simple and delicious pasta dish with chicken and fresh vegetables. Perfect for a quick dinner.',
+    image: foodImages.creamyChickenPasta,
+    cookingTime: 20,
+    prepTime: 20,
+    servings: 2,
+    difficulty: 'Easy',
+    isBestMatch: true,
+    isFavorite: false,
+    availableIngredients: [
+      { id: 'av_1', name: 'Pasta', quantity: 200, unit: 'g', image: foodImages.pasta },
+      { id: 'av_2', name: 'Chicken breast', quantity: 2, unit: 'pcs', image: foodImages.chickenBreast },
+      { id: 'av_3', name: 'Tomatoes', quantity: 3, unit: 'pcs', image: foodImages.tomatoes },
+      { id: 'av_4', name: 'Garlic', quantity: 2, unit: 'cloves', image: foodImages.garlic },
+      { id: 'av_5', name: 'Milk / Cream', quantity: 200, unit: 'ml', image: foodImages.milk },
+      { id: 'av_6', name: 'Onion', quantity: 1, unit: 'pc', image: foodImages.onion },
+      { id: 'av_7', name: 'Olive oil', quantity: 2, unit: 'tbsp', image: foodImages.oliveOil },
+    ],
+    missingIngredients: [
+      { id: 'ms_1', name: 'Parmesan cheese', quantity: 50, unit: 'g', image: foodImages.parmesan },
+      { id: 'ms_2', name: 'Fresh basil', quantity: 1, unit: 'a few leaves', image: foodImages.freshBasil },
+    ],
+    instructions: [
+      {
+        id: 'st_1',
+        step: 1,
+        title: 'Cook the pasta',
+        description: 'Bring a large pot of salted water to a boil. Cook pasta according to package instructions. Drain and set aside.',
+      },
+      {
+        id: 'st_2',
+        step: 2,
+        title: 'Cook the chicken',
+        description: 'Heat olive oil in a large pan over medium heat. Season chicken with salt and pepper. Cook for 5–7 minutes until golden.',
+      },
+      {
+        id: 'st_3',
+        step: 3,
+        title: 'Sauté the vegetables',
+        description: 'In the same pan, add onion, garlic and cherry tomatoes. Cook for 2–3 minutes until softened.',
+      },
+      {
+        id: 'st_4',
+        step: 4,
+        title: 'Make the creamy sauce',
+        description: 'Add milk and parmesan cheese to the pan. Stir until smooth and let it simmer gently for 2–3 minutes.',
+      },
+      {
+        id: 'st_5',
+        step: 5,
+        title: 'Combine and serve',
+        description: 'Add the cooked pasta and chicken into the pan with sauce. Toss well and top with fresh basil and extra cheese.',
+      },
+    ],
+  },
+  {
+    id: 'rec_2',
+    name: 'Spicy Tomato Rice',
+    title: 'Spicy Tomato Rice',
+    description: 'A flavorful and easy one-pan meal with tender chicken, tomatoes and aromatic spices.',
+    image: foodImages.spicyTomatoRice,
+    cookingTime: 25,
+    prepTime: 25,
+    servings: 2,
+    difficulty: 'Easy',
+    isBestMatch: false,
+    isFavorite: false,
+    availableIngredients: [
+      { id: 'av_21', name: 'Chicken breast', quantity: 2, unit: 'pcs', image: foodImages.chickenBreast },
+      { id: 'av_22', name: 'Tomatoes', quantity: 3, unit: 'pcs', image: foodImages.tomatoes },
+      { id: 'av_23', name: 'Onion', quantity: 1, unit: 'pc', image: foodImages.onion },
+      { id: 'av_24', name: 'Garlic', quantity: 2, unit: 'cloves', image: foodImages.garlic },
+      { id: 'av_25', name: 'Olive oil', quantity: 2, unit: 'tbsp', image: foodImages.oliveOil },
+      { id: 'av_26', name: 'Bell pepper', quantity: 1, unit: 'pc', image: foodImages.bellPepper },
+    ],
+    missingIngredients: [
+      { id: 'ms_21', name: 'Rice', quantity: 200, unit: 'g', image: foodImages.pasta },
+      { id: 'ms_22', name: 'Smoked paprika', quantity: 1, unit: 'tsp', image: foodImages.parmesan },
+    ],
+    instructions: [
+      {
+        id: 'st_21',
+        step: 1,
+        title: 'Sear the chicken',
+        description: 'Cut chicken into bite-sized cubes. Heat oil in a deep skillet and brown the chicken for 5 minutes.',
+      },
+      {
+        id: 'st_22',
+        step: 2,
+        title: 'Aromatics & Spices',
+        description: 'Add diced onion, minced garlic, sliced peppers and tomatoes. Stir in spices and cook until aromatic.',
+      },
+      {
+        id: 'st_23',
+        step: 3,
+        title: 'Simmer rice',
+        description: 'Stir in rice and hot water or broth. Cover skillet and let cook on low heat for 15 minutes.',
+      },
+      {
+        id: 'st_24',
+        step: 4,
+        title: 'Fluff and garnish',
+        description: 'Remove from heat, let stand 5 minutes, fluff with fork and garnish with fresh herbs.',
+      },
+    ],
+  },
+  {
+    id: 'rec_3',
+    name: 'Chicken & Vegetable Bowl',
+    title: 'Chicken & Vegetable Bowl',
+    description: 'A healthy and quick meal packed with flavor. Great for a balanced dinner.',
+    image: foodImages.chickenVegetableBowl,
+    cookingTime: 15,
+    prepTime: 15,
+    servings: 2,
+    difficulty: 'Easy',
+    isBestMatch: false,
+    isFavorite: false,
+    availableIngredients: [
+      { id: 'av_31', name: 'Chicken breast', quantity: 2, unit: 'pcs', image: foodImages.chickenBreast },
+      { id: 'av_32', name: 'Broccoli', quantity: 1, unit: 'head', image: foodImages.broccoli },
+      { id: 'av_33', name: 'Carrots', quantity: 3, unit: 'pcs', image: foodImages.carrots },
+      { id: 'av_34', name: 'Bell pepper', quantity: 1, unit: 'pc', image: foodImages.bellPepper },
+      { id: 'av_35', name: 'Tomatoes', quantity: 2, unit: 'pcs', image: foodImages.tomatoes },
+      { id: 'av_36', name: 'Olive oil', quantity: 1, unit: 'tbsp', image: foodImages.oliveOil },
+      { id: 'av_37', name: 'Garlic', quantity: 1, unit: 'clove', image: foodImages.garlic },
+      { id: 'av_38', name: 'Cheese', quantity: 50, unit: 'g', image: foodImages.cheese },
+    ],
+    missingIngredients: [
+      { id: 'ms_31', name: 'Lemon dressing', quantity: 2, unit: 'tbsp', image: foodImages.oliveOil },
+    ],
+    instructions: [
+      {
+        id: 'st_31',
+        step: 1,
+        title: 'Grill chicken',
+        description: 'Season chicken breast with salt, pepper, and herbs. Grill in a ridged skillet for 6–8 minutes.',
+      },
+      {
+        id: 'st_32',
+        step: 2,
+        title: 'Steam veggies',
+        description: 'Steam broccoli florets and sliced carrots in a covered pan for 4 minutes until crisp-tender.',
+      },
+      {
+        id: 'st_33',
+        step: 3,
+        title: 'Sauté peppers',
+        description: 'Toss bell pepper strips and cherry tomatoes in a hot skillet with a touch of olive oil and garlic.',
+      },
+      {
+        id: 'st_34',
+        step: 4,
+        title: 'Assemble bowl',
+        description: 'Slice grilled chicken, arrange warm veggies neatly in a bowl, crumble cheese, and drizzle with dressing.',
+      },
+    ],
+  },
+];
+
+export const alternateRecipes: Recipe[] = [
+  {
+    id: 'rec_4',
+    name: 'Cheesy Broccoli Frittata',
+    title: 'Cheesy Broccoli Frittata',
+    description: 'A fluffy, protein-rich egg bake filled with tender broccoli and melted cheese. Quick and satisfying.',
+    image: foodImages.cheesyFrittata,
+    cookingTime: 18,
+    prepTime: 18,
+    servings: 2,
+    difficulty: 'Easy',
+    isBestMatch: true,
+    isFavorite: false,
+    availableIngredients: [
+      { id: 'av_41', name: 'Eggs', quantity: 6, unit: 'pcs', image: foodImages.eggs },
+      { id: 'av_42', name: 'Broccoli', quantity: 1, unit: 'head', image: foodImages.broccoli },
+      { id: 'av_43', name: 'Cheese', quantity: 1, unit: 'block', image: foodImages.cheese },
+      { id: 'av_44', name: 'Milk', quantity: 50, unit: 'ml', image: foodImages.milk },
+      { id: 'av_45', name: 'Olive oil', quantity: 1, unit: 'tbsp', image: foodImages.oliveOil },
+    ],
+    missingIngredients: [
+      { id: 'ms_41', name: 'Nutmeg', quantity: 1, unit: 'pinch', image: foodImages.parmesan },
+    ],
+    instructions: [
+      {
+        id: 'st_41',
+        step: 1,
+        title: 'Whisk eggs',
+        description: 'Whisk eggs with a splash of milk, salt, pepper, and a pinch of nutmeg until frothy.',
+      },
+      {
+        id: 'st_42',
+        step: 2,
+        title: 'Cook broccoli',
+        description: 'Sauté chopped broccoli in an oven-safe skillet with olive oil until vibrant green and tender.',
+      },
+      {
+        id: 'st_43',
+        step: 3,
+        title: 'Bake frittata',
+        description: 'Pour eggs over broccoli, scatter grated cheese on top, and cook on low heat until set.',
+      },
+    ],
+  },
+  {
+    id: 'rec_5',
+    name: 'Mediterranean Chicken Stew',
+    title: 'Mediterranean Chicken Stew',
+    description: 'A rich and hearty tomato chicken stew loaded with slow-cooked carrots, onions and aromatic herbs.',
+    image: foodImages.chickenStew,
+    cookingTime: 28,
+    prepTime: 28,
+    servings: 2,
+    difficulty: 'Easy',
+    isBestMatch: false,
+    isFavorite: false,
+    availableIngredients: [
+      { id: 'av_51', name: 'Chicken breast', quantity: 2, unit: 'pcs', image: foodImages.chickenBreast },
+      { id: 'av_52', name: 'Tomatoes', quantity: 3, unit: 'pcs', image: foodImages.tomatoes },
+      { id: 'av_53', name: 'Carrots', quantity: 2, unit: 'pcs', image: foodImages.carrots },
+      { id: 'av_54', name: 'Garlic', quantity: 2, unit: 'cloves', image: foodImages.garlic },
+      { id: 'av_55', name: 'Onion', quantity: 1, unit: 'pc', image: foodImages.onion },
+    ],
+    missingIngredients: [
+      { id: 'ms_51', name: 'Bay leaves', quantity: 2, unit: 'leaves', image: foodImages.freshBasil },
+    ],
+    instructions: [
+      {
+        id: 'st_51',
+        step: 1,
+        title: 'Brown chicken',
+        description: 'Brown seasoned chicken pieces in olive oil until golden crust forms.',
+      },
+      {
+        id: 'st_52',
+        step: 2,
+        title: 'Add veggies',
+        description: 'Toss in sliced carrots, onions, and minced garlic. Cook until sweet and tender.',
+      },
+      {
+        id: 'st_53',
+        step: 3,
+        title: 'Simmer',
+        description: 'Add crushed tomatoes and herbs. Cover and gently simmer for 20 minutes.',
+      },
+    ],
+  },
+  {
+    id: 'rec_6',
+    name: 'Crispy Bell Pepper Stir-Fry',
+    title: 'Crispy Bell Pepper Stir-Fry',
+    description: 'Vibrant yellow bell peppers flash-fried with chicken strips and savory garlic in high heat.',
+    image: foodImages.stirFry,
+    cookingTime: 14,
+    prepTime: 14,
+    servings: 2,
+    difficulty: 'Easy',
+    isBestMatch: false,
+    isFavorite: false,
+    availableIngredients: [
+      { id: 'av_61', name: 'Chicken breast', quantity: 2, unit: 'pcs', image: foodImages.chickenBreast },
+      { id: 'av_62', name: 'Bell pepper', quantity: 1, unit: 'pc', image: foodImages.bellPepper },
+      { id: 'av_63', name: 'Garlic', quantity: 2, unit: 'cloves', image: foodImages.garlic },
+      { id: 'av_64', name: 'Olive oil', quantity: 2, unit: 'tbsp', image: foodImages.oliveOil },
+    ],
+    missingIngredients: [
+      { id: 'ms_61', name: 'Soy sauce', quantity: 1, unit: 'tbsp', image: foodImages.oliveOil },
+    ],
+    instructions: [
+      {
+        id: 'st_61',
+        step: 1,
+        title: 'Slice ingredients',
+        description: 'Slice chicken breast and yellow bell peppers into uniform thin strips.',
+      },
+      {
+        id: 'st_62',
+        step: 2,
+        title: 'Wok fry',
+        description: 'Heat skillet smoking hot, toss chicken and garlic for 3 minutes, then add peppers.',
+      },
+      {
+        id: 'st_63',
+        step: 3,
+        title: 'Finish & serve',
+        description: 'Drizzle with sauce, toss for 60 seconds until peppers are tender-crisp. Serve hot.',
+      },
+    ],
+  },
+];
