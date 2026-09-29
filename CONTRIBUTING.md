@@ -1,59 +1,174 @@
-# Team Git Workflow — FridgeAI
+# Contributing to FridgeAI
 
-One-time setup and the day-of workflow. Read this once, then just use `git-work.sh`.
+Thank you for your interest in contributing to **FridgeAI**! We welcome contributions from developers, designers, foodies, and open-source enthusiasts of all skill levels.
 
-## One-time setup (everyone, before the event)
+Whether you're fixing a bug, adding support for new AI models, improving recipe generation algorithms, or refining the mobile UI, this guide explains how to get started.
+
+---
+
+## Code of Conduct
+
+By participating in this project, you agree to abide by our [Code of Conduct](CODE_OF_CONDUCT.md). Please keep all interactions respectful, constructive, and inclusive.
+
+---
+
+## Getting Started
+
+### 1. Prerequisites
+
+Before setting up the project locally, ensure you have:
+
+- **Node.js**: `v20.9.0` or higher
+- **npm** or **bun**
+- **Git**
+- Optional for mobile testing:
+  - [Expo Go](https://expo.dev/go) on your iOS or Android physical device, OR
+  - iOS Simulator (macOS / Xcode) / Android Emulator (Android Studio)
+
+### 2. Fork and Clone
+
+1. Fork the repository on GitHub: [`https://github.com/Ben-coderr/fridgeai-mobile`](https://github.com/Ben-coderr/fridgeai-mobile)
+2. Clone your fork locally:
+   ```bash
+   git clone https://github.com/<your-username>/fridgeai-mobile.git
+   cd fridgeai-mobile
+   ```
+3. Set the upstream remote:
+   ```bash
+   git remote add upstream https://github.com/Ben-coderr/fridgeai-mobile.git
+   ```
+
+---
+
+## Development Setup
+
+FridgeAI is structured as a two-part monorepo:
+- `backend/`: Next.js 16 API with multi-provider AI vision & text pipelines.
+- `mobile/`: Expo SDK 57 React Native application.
+
+### Setting up the Backend
 
 ```bash
-git config --global user.name "Your Name"
-git config --global user.email "you@example.com"
+cd backend
+npm install
+cp .env.example .env.local
 ```
 
-This name is what shows up in `TEAM_LOG.md` and in GitHub's history, so use your real name, not a nickname only you recognize.
+Configure your API keys in `backend/.env.local`. You can configure one or multiple keys for failover:
+- `GEMINI_API_KEYS` (Google Gemini AI Studio)
+- `OPENROUTER_API_KEYS` (OpenRouter API)
+- `GROQ_API_KEYS` (Groq API)
 
-Clone the repo, enter its root, install only the workspace you need, and check out your own branch instead of working on `main`:
+*Tip:* You can also set `MOCK_AI=true` to test the backend locally without making outbound network calls to AI APIs.
+
+Start the Next.js development server:
+```bash
+npm run dev
+# The backend will be live at http://localhost:3000
+```
+
+### Setting up the Mobile App
+
+In a separate terminal:
+```bash
+cd mobile
+npm install
+```
+
+Configure your environment if needed:
+```bash
+# Optional: Point to your backend or run in mock mode
+# Copy and edit .env
+```
+
+Start Expo:
+```bash
+npm run start
+```
+
+Press `i` for iOS Simulator, `a` for Android Emulator, `w` for Web, or scan the QR code with your camera/Expo Go app on a physical device.
+
+*Note for physical devices / Android emulator:*
+- Android Emulator: Set `EXPO_PUBLIC_API_URL=http://10.0.2.2:3000`
+- Physical phone on Wi-Fi: Set `EXPO_PUBLIC_API_URL=http://<YOUR_LAN_IP>:3000`
+
+---
+
+## Development Workflow & Standards
+
+### Branch Naming Conventions
+
+Create a new branch from `main` using descriptive prefixes:
+- `feat/add-barcode-scanner` (New feature)
+- `fix/image-upload-orientation` (Bug fix)
+- `docs/update-readme` (Documentation update)
+- `refactor/clean-key-pool` (Code refactoring)
+- `test/add-vision-scenarios` (Testing improvements)
 
 ```bash
-git clone <repo-url>
-cd <repo-folder>
-git switch -c feature/<what-you're-building>
+git checkout -b feat/your-feature-name
 ```
 
-Examples: `feature/mobile-scanning`, `feature/mobile-ingredients`, `feature/backend-vision`.
+### Code Style & Guidelines
 
-Before editing, claim the files or feature area in your team chat. Do not have two people change the same screen, API route, or shared type at once.
+- **TypeScript**: Strict type checking is enabled across both workspaces. Avoid using `any`; define explicit interfaces in `types/`.
+- **Linting**: Keep code clean and lint-free.
+- **Commit Messages**: Follow conventional commit guidelines:
+  - `feat: add recipe calorie estimation`
+  - `fix: handle corrupted image uploads in scan route`
+  - `docs: update API route documentation`
 
-## Whenever you've made progress
+### Verification Before Submitting
 
-Just run:
+Always run typecheck, lint, and backend test suites locally before pushing your branch:
 
 ```bash
-./scripts/git-work.sh "Add editable detected ingredients"
+# Backend checks
+cd backend
+npm run lint
+npx tsc --noEmit
+npm run test
+npm run build
+
+# Mobile checks
+cd ../mobile
+npm run lint
+npx tsc --noEmit
 ```
 
-Or, if you're using **Claude Code** in this repo, just tell it: **"do git work"** — it reads `CLAUDE.md` and does the same thing, writing the commit message for you.
+---
 
-That one command stages the current workspace changes, commits them, pushes the current feature branch, and logs the result in `TEAM_LOG.md`. Review `git status` first: it intentionally commits every changed file in this repository.
+## Submitting a Pull Request (PR)
 
-Run it often — every 20–30 minutes, or whenever you finish a small piece — rather than saving up a giant change. Small, frequent commits are much easier to merge and to undo if something breaks.
+1. Commit your changes:
+   ```bash
+   git commit -m "feat: your concise commit message"
+   ```
+2. Push to your fork:
+   ```bash
+   git push origin feat/your-feature-name
+   ```
+3. Open a Pull Request from your branch to `Ben-coderr/fridgeai-mobile:main`.
+4. Fill in the Pull Request template describing:
+   - What changes were made and why.
+   - Any testing performed (include screenshots for UI changes).
+   - Any breaking changes or dependency additions.
+5. Address any review comments or CI test failures promptly.
 
-## Merging your branch into `main`
+---
 
-Once your feature works and its workspace checks pass, open a pull request on GitHub from your feature branch into `main`. A teammate reviews the diff, then the assigned Git point person merges it. This keeps `main` protected and gives the team a clear rollback point.
+## How to Help
 
-```bash
-npm --prefix mobile run lint
-npm --prefix mobile exec tsc --noEmit
-```
+Not sure where to begin? Check out the GitHub issues labeled:
+- `good first issue` — Great for newcomers.
+- `help wanted` — High-priority enhancements we'd love assistance with.
+- `bug` — Verified bugs that need fixes.
 
-For backend work, run `npm run build` inside `backend/`. If GitHub shows conflicts you're not sure how to resolve, ask the Git point person rather than guessing.
+Ideas for contribution:
+- Adding ingredient shelf-life and expiration warnings.
+- Multi-photo capture (uploading photos of door + shelves).
+- Dietary preference filters (Vegan, Gluten-Free, Halal, Kosher, Nut-Free).
+- Local supermarket price estimation and 1-click cart exports.
+- Multi-language support (i18n).
 
-## Windows users
-
-Run these commands in **Git Bash** (installed automatically with Git for Windows), not PowerShell/CMD — `git-work.sh` is a bash script.
-
-## If something goes wrong
-
-- **"failed to push"** → run `git pull --rebase origin <branch>`, resolve conflicts, run the appropriate checks, then retry the script.
-- **Accidentally committed a real API key** → tell the team immediately and rotate/regenerate that key. Removing it from one commit doesn't remove it from git history.
-- **Not sure what state your branch is in** → `git status` always tells you.
+Thank you for helping make FridgeAI better for everyone! 🍳
