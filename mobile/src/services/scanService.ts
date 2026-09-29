@@ -1,6 +1,6 @@
 import { Ingredient, ScanningStep } from '../types';
-import { API_BASE_URL, USE_BACKEND } from '../config/api';
-import { foodImages } from '../data/mockData';
+import { getApiBaseUrl, isBackendEnabled } from '../config/api';
+import { foodImages, initialDetectedIngredients } from '../data/mockData';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import { getIngredientImage } from '../utils/imageHelper';
 
@@ -98,7 +98,7 @@ async function analyzeImageWithBackend(imageUri: string, _capturedBase64?: strin
     } as unknown as Blob);
   }
 
-  const response = await fetch(`${API_BASE_URL}/api/scan`, {
+  const response = await fetch(`${getApiBaseUrl()}/api/scan`, {
     method: 'POST',
     body: formData,
     // Do NOT set Content-Type manually — fetch sets the correct multipart boundary
@@ -162,9 +162,28 @@ export const scanService = {
       onError(new Error('Take a photo or choose an image before starting a scan.'));
       return () => { cancelled = true; };
     }
-    if (!USE_BACKEND) {
-      onError(new Error('AI scanning is disabled. Set EXPO_PUBLIC_USE_BACKEND=true in the mobile environment.'));
-      return () => { cancelled = true; };
+    if (!isBackendEnabled()) {
+      const t1 = setTimeout(() => {
+        if (!cancelled) onStepUpdate(makeSteps('completed', 'completed', 'active', 'pending'));
+      }, 600);
+      const t2 = setTimeout(() => {
+        if (!cancelled) onStepUpdate(makeSteps('completed', 'completed', 'completed', 'active'));
+      }, 1200);
+      const t3 = setTimeout(() => {
+        if (!cancelled) {
+          onStepUpdate(makeSteps('completed', 'completed', 'completed', 'completed'));
+          setTimeout(() => {
+            if (!cancelled) onComplete(initialDetectedIngredients);
+          }, 400);
+        }
+      }, 1800);
+
+      return () => {
+        cancelled = true;
+        clearTimeout(t1);
+        clearTimeout(t2);
+        clearTimeout(t3);
+      };
     }
 
     const t1 = setTimeout(() => {
@@ -181,7 +200,10 @@ export const scanService = {
         if (!cancelled) onComplete(ingredients);
       }, 400);
     }).catch((error: unknown) => {
-      if (!cancelled) onError(error instanceof Error ? error : new Error('Image analysis failed.'));
+      if (!cancelled) {
+        const msg = error instanceof Error ? error.message : 'Image analysis failed.';
+        onError(new Error(`${msg}\n(Backend: ${getApiBaseUrl()})`));
+      }
     });
 
     return () => {

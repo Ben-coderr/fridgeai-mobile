@@ -93,6 +93,7 @@ export const defaultPreferences: UserPreferences = {
   peopleCount: 2,
   mealType: 'Dinner',
   preference: 'Quick',
+  vegetarianOnly: false,
 };
 
 export const scanningStepsData: ScanningStep[] = [

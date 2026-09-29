@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, StatusBar } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, StatusBar, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -31,12 +31,16 @@ export const PreferencesScreen: React.FC = () => {
       if (generated && generated.length > 0) {
         setRecipes(generated);
         setSelectedRecipe(generated[0]);
+        setLoading(false);
+        navigation.navigate('Recipes');
+      } else {
+        setLoading(false);
+        Alert.alert('No Recipes Found', 'Could not generate recipes for the selected preferences.');
       }
     } catch (err) {
       console.warn('[PreferencesScreen] Error generating recipes:', err);
-    } finally {
       setLoading(false);
-      navigation.navigate('Recipes');
+      Alert.alert('Recipe Generation Failed', err instanceof Error ? err.message : 'Please check your connection and try again.');
     }
   };
 

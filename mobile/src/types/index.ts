@@ -39,6 +39,7 @@ export interface UserPreferences {
   peopleCount: number;
   mealType: MealType;
   preference: PreferenceType;
+  vegetarianOnly?: boolean;
 }
 
 export interface ShoppingItem {
