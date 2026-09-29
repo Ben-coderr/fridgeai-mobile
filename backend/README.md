@@ -15,13 +15,15 @@ Next.js requires Node.js 20.9 or later.
 
 Set `MOCK_AI=false` and configure the server-side Gemini, OpenRouter, and Groq key pools in `.env.local`. The mobile app sends photos and recipe requests to this backend; provider keys must never be placed in the mobile app.
 
-## API contract
+## API Contract
 
-| Route | Request | Response |
-|---|---|---|
-| `POST /api/scan` | multipart form with `image` | `{ ingredients, source }` |
-| `POST /api/recipes` | `{ ingredients, preferences }` | `{ recipes, source }` |
+| Route | Method | Request | Response |
+|---|---|---|---|
+| `/api/health` | `GET` | _None_ | `{ status, version, uptime, mockMode, providers }` |
+| `/api/scan` | `POST` | `multipart/form-data` with `image` file | `{ ingredients: Ingredient[], source: string }` |
+| `/api/recipes` | `POST` | `{ ingredients, preferences }` (JSON) | `{ recipes: Recipe[], source: string }` |
+| `/api/instructions` | `POST` | `{ recipeId, recipeTitle, servings, ingredients }` | `{ instructions: RecipeStep[], source: string }` |
 
-Provider failures return an error response instead of invented fallback data. The mobile app shows these failures so backend URL, key, and provider problems can be fixed directly.
+Provider failures return descriptive error responses with proper HTTP status codes. The mobile app surfaces these failures so backend URL, key, and provider problems can be fixed directly.
 
 Run `npm run build` before a backend pull request.

@@ -16,16 +16,20 @@ export interface GroqTextOptions {
 export async function callGroqRecipes(
   apiKey: string,
   ingredients: Array<{ name: string; quantity: number; unit: string }>,
-  preferences: { peopleCount: number; mealType: string; preference: string },
+  preferences: { peopleCount: number; mealType: string; preference: string; vegetarianOnly?: boolean },
   options?: GroqTextOptions
 ): Promise<GeneratedRecipe[]> {
-  const primaryModel = process.env.GROQ_MODEL || 'openai/gpt-oss-120b';
-  const backupModel = process.env.GROQ_BACKUP_MODEL || 'openai/gpt-oss-20b';
+  const primaryModel = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
+  const backupModel = process.env.GROQ_BACKUP_MODEL || 'llama-3.1-8b-instant';
   const modelName = options?.model || (options?.useBackupModel ? backupModel : primaryModel);
   const timeoutMs = options?.timeoutMs || 20_000;
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  const vegetarianClause = preferences.vegetarianOnly
+    ? '\n- Dietary Restriction: STRICT VEGETARIAN ONLY (strictly no meat, poultry, fish, seafood, or bacon)'
+    : '';
 
   const userPrompt = `Here are the available fridge ingredients:
 ${JSON.stringify(ingredients, null, 2)}
@@ -33,7 +37,7 @@ ${JSON.stringify(ingredients, null, 2)}
 User preferences:
 - Servings/People: ${preferences.peopleCount}
 - Meal Type: ${preferences.mealType}
-- Dietary/Goal Preference: ${preferences.preference}
+- Dietary/Goal Preference: ${preferences.preference}${vegetarianClause}
 
 Generate at most 3 recipes using these ingredients.`;
 
@@ -87,8 +91,8 @@ export async function callGroqInstructions(
   },
   options?: GroqTextOptions
 ): Promise<GeneratedInstructionStep[]> {
-  const primaryModel = process.env.GROQ_MODEL || 'openai/gpt-oss-120b';
-  const backupModel = process.env.GROQ_BACKUP_MODEL || 'openai/gpt-oss-20b';
+  const primaryModel = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
+  const backupModel = process.env.GROQ_BACKUP_MODEL || 'llama-3.1-8b-instant';
   const modelName = options?.model || (options?.useBackupModel ? backupModel : primaryModel);
   const timeoutMs = options?.timeoutMs || 20_000;
 

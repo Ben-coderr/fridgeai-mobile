@@ -7,10 +7,12 @@ interface RecipeRequestBody {
     peopleCount?: number;
     mealType?: string;
     preference?: string;
+    vegetarianOnly?: boolean;
   };
   people?: number;
   mealType?: string;
   preference?: string;
+  vegetarianOnly?: boolean;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -71,11 +73,19 @@ export async function POST(request: Request) {
         ? body.preference
         : 'Quick';
 
+    const vegetarianOnly =
+      typeof prefs.vegetarianOnly === 'boolean'
+        ? prefs.vegetarianOnly
+        : typeof body.vegetarianOnly === 'boolean'
+        ? body.vegetarianOnly
+        : false;
+
     // Dispatch through AI Text Pipeline (Groq primary -> Groq backup -> Mock)
     const result = await dispatchRecipes(normalizedIngredients, {
       peopleCount,
       mealType,
       preference,
+      vegetarianOnly,
     });
 
     return NextResponse.json({
