@@ -17,6 +17,7 @@ interface AppContextType {
   setPeopleCount: (count: number) => void;
   setMealType: (type: MealType) => void;
   setPreference: (pref: PreferenceType) => void;
+  setVegetarianOnly: (val: boolean) => void;
 
   recipes: Recipe[];
   setRecipes: (recipes: Recipe[]) => void;
@@ -105,6 +106,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setPreferencesState((prev) => ({ ...prev, preference: pref }));
   };
 
+  const setVegetarianOnly = (val: boolean) => {
+    setPreferencesState((prev) => ({ ...prev, vegetarianOnly: val }));
+  };
+
   const generateDifferentRecipes = async () => {
     const generated = await recipeService.getRecipes(preferences, ingredients);
     setRecipes(generated);
@@ -172,6 +177,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setPeopleCount,
         setMealType,
         setPreference,
+        setVegetarianOnly,
         recipes,
         setRecipes,
         selectedRecipe,

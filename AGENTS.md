@@ -23,11 +23,11 @@ npx expo install --fix      # fix incompatible package versions
 
 Run lint and typecheck before declaring any task done.
 
-## Navigation & Routing
+## Navigation & Architecture
 
-- Use **Expo Router** for all navigation. Routes live in `src/app/` — every file there is a screen, `_layout.tsx` files define navigators. Keep non-route code (components, hooks, utils) outside `src/app/`.
-- Import `Link`, `router`, and `useLocalSearchParams` from `expo-router`.
-- Docs: https://docs.expo.dev/router/introduction.md
+- Navigation uses **React Navigation Native Stack** (`@react-navigation/native-stack`). Navigators and routes are defined in `mobile/src/navigation/AppNavigator.tsx`.
+- Screen components reside in `mobile/src/screens/`.
+- Global state is managed via React Context in `mobile/src/context/AppContext.tsx`.
 
 ## Building with EAS
 

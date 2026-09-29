@@ -220,11 +220,20 @@ export async function scoreAndRankRecipes(recipes: GeneratedRecipe[]): Promise<G
 
 export async function dispatchRecipes(
   ingredients: Array<{ name: string; quantity: number; unit: string }>,
-  preferences: { peopleCount: number; mealType: string; preference: string }
+  preferences: { peopleCount: number; mealType: string; preference: string; vegetarianOnly?: boolean }
 ): Promise<RecipesDispatchResult> {
   if (process.env.MOCK_AI === 'true') {
     console.log('[Dispatcher:Recipes] MOCK_AI is enabled. Returning mock recipes.');
-    return { source: 'mock', recipes: await scoreAndRankRecipes(MOCK_RECIPES) };
+    let list = MOCK_RECIPES;
+    if (preferences.vegetarianOnly) {
+      const nonVeg = ['chicken', 'beef', 'pork', 'fish', 'salmon', 'tuna', 'bacon', 'turkey', 'shrimp', 'steak', 'meat'];
+      const filtered = MOCK_RECIPES.filter((r) => {
+        const t = ((r.title || '') + ' ' + (r.name || '') + ' ' + (r.description || '')).toLowerCase();
+        return !nonVeg.some((meat) => t.includes(meat));
+      });
+      if (filtered.length > 0) list = filtered;
+    }
+    return { source: 'mock', recipes: await scoreAndRankRecipes(list) };
   }
 
   const groqPool = getGroqPool();

@@ -10,7 +10,7 @@ npm install
 npm start
 ```
 
-For a physical phone, set `EXPO_PUBLIC_API_URL` in `mobile/.env.local` to the computer's LAN address where the backend is running (see `.env.example`). `localhost` on a phone points to the phone itself. Start the backend separately with `cd backend && npm run dev`.
+For a physical phone, set `EXPO_PUBLIC_API_URL` in `mobile/.env.local` to the computer's LAN address where the backend is running (see `.env.example`), or easily configure it directly within the app's **Settings** screen with the built-in server connectivity test. `localhost` on a phone points to the phone itself. Start the backend separately with `cd backend && npm run dev`.
 
 Use Expo Go for the current JavaScript-only dependency set. Run the checks before opening a pull request:
 
